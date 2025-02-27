@@ -46,8 +46,7 @@ namespace adaptyst {
      the command line.
   */
   int main_entrypoint(int argc, char **argv) {
-    CLI::App app("Comprehensive profiling tool based on Linux perf");
-
+    CLI::App app("Adaptyst: a performance analysis tool");
     app.formatter(std::make_shared<PrettyFormatter>());
 
     bool print_version = false;

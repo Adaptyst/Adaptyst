@@ -11,7 +11,7 @@ namespace adaptyst {
      when it is run from the command line.
   */
   int server_entrypoint(int argc, char **argv) {
-    CLI::App app("Post-processing server for Adaptyst");
+    CLI::App app("adaptyst-server: the processing server for Adaptyst");
 
     app.formatter(std::make_shared<PrettyFormatter>());
 
