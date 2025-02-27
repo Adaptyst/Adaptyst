@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #ifndef PROFILING_HPP_
@@ -85,8 +85,8 @@ namespace aperf {
   };
 
   /**
-     A class describing adaptiveperf-server connection instructions
-     for profilers, sent by adaptiveperf-server during the initial
+     A class describing adaptyst-server connection instructions
+     for profilers, sent by adaptyst-server during the initial
      setup phase.
   */
   class ServerConnInstrs {
@@ -123,8 +123,8 @@ namespace aperf {
        @param pid                 The PID of a process the profiler should
                                   be attached to. This may be left unused by
                                   classes deriving from Profiler.
-       @param connection_instrs   adaptiveperf-server connection
-                                  instructions, sent by adaptiveperf-server
+       @param connection_instrs   adaptyst-server connection
+                                  instructions, sent by adaptyst-server
                                   during the initial setup phase.
        @param result_out          The path to the "out" directory of
                                   results of the current profiling session.

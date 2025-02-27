@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #include "print.hpp"
@@ -22,7 +22,7 @@ namespace aperf {
 
     std::unique_lock lock(print_mutex);
 
-    std::cout << "AdaptivePerf: comprehensive profiling tool based on Linux perf" << std::endl;
+    std::cout << "Adaptyst: a performance analysis tool" << std::endl;
     std::cout << "Copyright (C) CERN." << std::endl;
     std::cout << std::endl;
     std::cout << "This program is free software; you can redistribute it and/or" << std::endl;

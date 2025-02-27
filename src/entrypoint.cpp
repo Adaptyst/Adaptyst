@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #include "entrypoint.hpp"
@@ -42,7 +42,7 @@ namespace aperf {
   };
 
   /**
-     Entry point to the AdaptivePerf frontend when it is run from
+     Entry point to the Adaptyst frontend when it is run from
      the command line.
   */
   int main_entrypoint(int argc, char **argv) {
@@ -69,7 +69,7 @@ namespace aperf {
     int off_cpu_freq = 1000;
     app.add_option("-f,--off-cpu-freq", off_cpu_freq, "Sampling frequency "
                    "per second for off-CPU time profiling "
-                   "(0 disables off-CPU profiling, -1 makes AdaptivePerf "
+                   "(0 disables off-CPU profiling, -1 makes Adaptyst "
                    "capture *all* off-CPU events) (default: 1000)")
       ->check(OnlyMinRange(-1))
       ->option_text("UINT or -1");
@@ -102,7 +102,7 @@ namespace aperf {
 
     std::string address = "";
     app.add_option("-a,--address", address, "Delegate post-processing to "
-                   "another machine running adaptiveperf-server. All results "
+                   "another machine running adaptyst-server. All results "
                    "will be stored on that machine.")
       ->check([](const std::string &arg) {
         if (!std::regex_match(arg, std::regex("^.+\\:[0-9]+$"))) {
@@ -121,7 +121,7 @@ namespace aperf {
                    "(i.e. the server receives the list, looks for the "
                    "files there, and creates a source code archive there as "
                    "well), \"file:<path>\" (i.e. the list is saved to <path> "
-                   "and can be then read e.g. by adaptiveperf-code), or "
+                   "and can be then read e.g. by adaptyst-code), or "
                    "\"fd:<number>\" (i.e. the list is written to a specified "
                    "file descriptor).")
       ->check([](const std::string &arg) {
@@ -136,7 +136,7 @@ namespace aperf {
 
     unsigned int server_buffer = 1024;
     app.add_option("-s,--server-buffer", server_buffer, "Communication "
-                   "buffer size in bytes for internal adaptiveperf-server. "
+                   "buffer size in bytes for internal adaptyst-server. "
                    "Not to be used with -a. (default when no -a: 1024)")
       ->check(OnlyMinRange(1))
       ->option_text("UINT>0")
@@ -144,10 +144,10 @@ namespace aperf {
 
     unsigned int warmup = 1;
     app.add_option("-w,--warmup", warmup, "Warmup time in seconds between "
-                   "adaptiveperf-server signalling readiness for receiving "
+                   "adaptyst-server signalling readiness for receiving "
                    "data and starting the profiled program. Increase this "
                    "value if you see missing information after profiling "
-                   "(note that adaptiveperf-server is also used internally "
+                   "(note that adaptyst-server is also used internally "
                    "if no -a option is specified). (default: 1)")
       ->check(OnlyMinRange(1))
       ->option_text("UINT>0");
@@ -334,7 +334,7 @@ namespace aperf {
 
       pid_t current_pid = getpid();
       fs::path tmp_dir = fs::temp_directory_path() /
-        ("adaptiveperf.pid." + std::to_string(current_pid));
+        ("adaptyst.pid." + std::to_string(current_pid));
 
       if (fs::exists(tmp_dir)) {
         fs::remove_all(tmp_dir);
@@ -371,7 +371,7 @@ namespace aperf {
         to_return = 2;
       } catch (std::exception &e) {
         print("A fatal error has occurred! If the issue persits, "
-              "please contact the AdaptivePerf developers, citing \"" +
+              "please contact the Adaptyst developers, citing \"" +
               std::string(e.what()) + "\".", false, true);
         print("For investigating what has gone wrong, you can check the files created in " +
               tmp_dir.string() + ".", false, true);

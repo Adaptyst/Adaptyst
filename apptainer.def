@@ -1,13 +1,13 @@
 Bootstrap: docker
-From: {{ registry }}/adaptiveperf/gentoo-fp:latest
+From: {{ registry }}/adaptyst/gentoo-fp:latest
 
 %files
-    {{ project_dir }} adaptiveperf
+    {{ project_dir }} adaptyst
 
 %post
-    cd adaptiveperf
+    cd adaptyst
     ./build.sh
     USE="-extra" emerge sys-devel/clang
     echo | PATH=$PATH:$(dirname /usr/lib/llvm/*/bin/clang) ./install.sh
     emerge --deselect sys-devel/clang sys-devel/llvm && emerge --depclean
-    cd .. && rm -rf adaptiveperf
+    cd .. && rm -rf adaptyst

@@ -1,11 +1,11 @@
-# AdaptivePerf
+# Adaptyst
 [![License: GNU GPL v2 only](https://img.shields.io/badge/license-GNU%20GPL%20v2%20only-blue)]()
 [![Version: 0.1.dev](https://img.shields.io/badge/version-0.1.dev-red)]()
 
-A comprehensive profiling tool with custom-patched Linux ```perf``` as its main foundation.
+A comprehensive and architecture-agnostic performance analysis tool (formerly AdaptivePerf).
 
 ## Disclaimer
-This is currently a dev version and the tool is under active development. The test coverage is currently limited to the backend (adaptiveperf-server) only and bugs are to be expected. Use at your own risk!
+This is currently a dev version and the tool is under active development. The test coverage is currently limited to the backend (adaptyst-server) only and bugs are to be expected. Use at your own risk!
 
 All feedback is welcome.
 
@@ -20,14 +20,14 @@ The project is distributed under the GNU GPL v2 license. See LICENSE for details
 * Producing data needed for rendering a thread/process timeline view with non-time-ordered and time-ordered flame graphs per thread/process (where on-CPU and off-CPU activity is visualised in one graph)
 * Profiling stack traces of functions spawning new threads/processes
 * Profiling any sampling-based event supported by ```perf```
-* Streaming profiling events in real-time through TCP to a different machine running adaptiveperf-server (part of this repository)
+* Streaming profiling events in real-time through TCP to a different machine running adaptyst-server (part of this repository)
 * Detecting inappropriate CPU and kernel configurations automatically and therefore helping ```perf``` traverse stack completely in all cases
 
 On-CPU profiling uses ```perf``` with the ```task-clock``` event. Off-CPU profiling is based on sampling explained with the diagram below (using the example of a single process with interleaving on-CPU and off-CPU activity). The sampling period is calculated from a user-provided off-CPU sampling frequency.
 
-![Off-CPU sampling](https://github.com/AdaptivePerf/AdaptivePerf/assets/24892582/cfe3d882-9ce1-40f8-8f57-e286f04057dd)
+![Off-CPU sampling](https://github.com/Adaptyst/Adaptyst/assets/24892582/cfe3d882-9ce1-40f8-8f57-e286f04057dd)
 
-Both single-threaded and multi-threaded programs are supported. All CPU architectures and vendors should also be supported (provided that the installation requirements are met, see below) since the main features of AdaptivePerf are based on kernel-based performance counters and portable stack traversal methods. **The tool has been successfully tested on x86-64, arm64, and RISC-V so far.** However, if extra ```perf``` events are used for sampling, the list of available events should be checked beforehand by running ```perf list``` as this is architecture-dependent.
+Both single-threaded and multi-threaded programs are supported. All CPU architectures and vendors should also be supported (provided that the installation requirements are met, see below) since the main features of Adaptyst are based on kernel-based performance counters and portable stack traversal methods. **The tool has been successfully tested on x86-64, arm64, and RISC-V so far.** However, if extra ```perf``` events are used for sampling, the list of available events should be checked beforehand by running ```perf list``` as this is architecture-dependent.
 
 ## Current limitations / TODO
 Work is being done towards eliminating all of the limitations below step-by-step, stay tuned!
@@ -38,13 +38,13 @@ Work is being done towards eliminating all of the limitations below step-by-step
 
 ## Installation
 ### Requirements
-By default, the full suite is installed, i.e. ```adaptiveperf``` and ```adaptiveperf-server``` + the utilities. For this, you need:
+By default, the full suite is installed, i.e. ```adaptyst``` and ```adaptyst-server``` + the utilities. For this, you need:
 * Linux 5.8 or newer compiled with:
   * ```CONFIG_DEBUG_INFO_BTF=y``` (or equivalent, you can check this by seeing if ```/sys/kernel/btf``` exists in your system)
   * ```CONFIG_FTRACE_SYSCALLS=y``` (or equivalent, you can check this by seeing if ```/sys/kernel/tracing/events/syscalls``` exists in your system and is not empty, but you may need to mount ```/sys/kernel/tracing``` first)
   * If you want complete kernel debug symbols, ```CONFIG_KALLSYMS=y``` and ```CONFIG_KALLSYMS_ALL=y``` (or equivalent) should also be set.
   * **Kernel recompilation may NOT be needed! If you have ```/sys/kernel/btf``` and ```/sys/kernel/tracing/events/syscalls``` as explained above and you don't care about having kernel debug symbols, you're already good to go here!**
-* Python 3.6 or newer (3.7 or newer for ```adaptiveperf-code```)
+* Python 3.6 or newer (3.7 or newer for ```adaptyst-code```)
 * addr2line (part of binutils, tested with 2.42.0)
 * CMake 3.20 or newer (if building from source)
 * libnuma (if a machine with your profiled application has NUMA, tested with 2.0.19)
@@ -54,58 +54,58 @@ By default, the full suite is installed, i.e. ```adaptiveperf``` and ```adaptive
 * [Boost](https://www.boost.org) (header-only libraries and the ```program_options``` module, tested with 1.85.0)
 * [libarchive](https://github.com/libarchive/libarchive) (tested with 3.7.7)
 * The patched "perf" dependencies:
-  * Clang (if building from source, can be removed after installing AdaptivePerf, tested with 17.0.6)
+  * Clang (if building from source, can be removed after installing Adaptyst, tested with 17.0.6)
   * libtraceevent (tested with 1.8.3)
   * libpython (corresponding to Python 3.6 or newer, development headers may be needed if building from source)
 
-If you install ```adaptiveperf-server``` alone, the requirements are different. You **only** need:
+If you install ```adaptyst-server``` alone, the requirements are different. You **only** need:
 * CMake 3.20 or newer (if building from source)
 * [CLI11](https://github.com/CLIUtils/CLI11) (if building from source, tested with 2.4.2)
 * [nlohmann-json](https://github.com/nlohmann/json) (if building from source, tested with 3.11.3)
 * [PocoNet + PocoFoundation](https://pocoproject.org) (tested with 1.14.0)
 * [Boost](https://www.boost.org) (header-only libraries, tested with 1.85.0)
 
-The tested dependency versions are a guideline only, AdaptivePerf may compile and run without issues with older versions (there have been problems with some older versions of nlohmann-json, CLI11, and libarchive though). However, it is recommended to use the newest versions available for your distribution (or for installing from source if distribution versions don't solve e.g. compilation errors).
+The tested dependency versions are a guideline only, Adaptyst may compile and run without issues with older versions (there have been problems with some older versions of nlohmann-json, CLI11, and libarchive though). However, it is recommended to use the newest versions available for your distribution (or for installing from source if distribution versions don't solve e.g. compilation errors).
 
 If you want to enable tests (see the documentation for contributors), you don't have to install [the GoogleTest framework](https://github.com/google/googletest) beforehand, this is done automatically during the compilation.
 
-AdaptivePerf uses the patched "perf", temporarily available at https://gitlab.cern.ch/adaptiveperf/linux (inside ```tools/perf```). However, you don't have to download and install it manually, this is handled automatically by the installation scripts (see the "Manually" section below). **If there are extra dependencies actually needed by the patched "perf" and not listed above, please file an issue on GitHub.**
+Adaptyst uses the patched "perf", temporarily available at https://gitlab.cern.ch/adaptyst/linux (inside ```tools/perf```). However, you don't have to download and install it manually, this is handled automatically by the installation scripts (see the "Manually" section below). **If there are extra dependencies actually needed by the patched "perf" and not listed above, please file an issue on GitHub.**
 
 A profiled program along with dependencies should be compiled with frame pointers (i.e. in case of gcc, with the ```-fno-omit-frame-pointer``` flag along with ```-mno-omit-leaf-frame-pointer``` if available). If you can, it is recommended to have everything in the system compiled with frame pointers (this can be achieved e.g. in Gentoo and Fedora 38+).
 
 ### Manually
 Please clone this repository and run ```./build.sh``` (as either non-root or root, non-root recommended) followed by ```./install.sh``` (as root unless you run the installation for a non-system prefix).
 
-By default, AdaptivePerf is installed in ```/usr/local```, its support files along with the bundled patched "perf" are installed in ```/opt/adaptiveperf```, and the configuration file of AdaptivePerf is installed in ```/etc/adaptiveperf.conf```.
+By default, Adaptyst is installed in ```/usr/local```, its support files along with the bundled patched "perf" are installed in ```/opt/adaptyst```, and the configuration file of Adaptyst is installed in ```/etc/adaptyst.conf```.
 
 * If you want to change ```/usr/local```, specify an alternative path as an argument to ```install.sh```, e.g. ```./install.sh /usr```.
-* If you want to change ```/opt/adaptiveperf```, run ```./build.sh -DAPERF_SCRIPT_PATH=<new path>``` before installing.
-* If you want to change ```/etc/adaptiveperf.conf```, run ```./build.sh -DAPERF_CONFIG_PATH=<new path including the filename>``` before installing.
+* If you want to change ```/opt/adaptyst```, run ```./build.sh -DAPERF_SCRIPT_PATH=<new path>``` before installing.
+* If you want to change ```/etc/adaptyst.conf```, run ```./build.sh -DAPERF_CONFIG_PATH=<new path including the filename>``` before installing.
 
 The ```-DAPERF_SCRIPT_PATH``` and ```-DAPERF_CONFIG_PATH``` options can be combined in one ```./build.sh``` command.
 
-### Manually (adaptiveperf-server only)
-If you want to install just adaptiveperf-server, please clone this repository and run ```./build_server.sh``` (as either non-root or root, non-root recommended) followed by ```./install.sh``` (as root unless you run the installation for a non-system prefix).
+### Manually (adaptyst-server only)
+If you want to install just adaptyst-server, please clone this repository and run ```./build_server.sh``` (as either non-root or root, non-root recommended) followed by ```./install.sh``` (as root unless you run the installation for a non-system prefix).
 
-```./install.sh``` supports a custom installation prefix, see the "Manually" section above. adaptiveperf-server does not require the patched "perf" and should be compilable for various operating systems (the scripts are only tested on Linux though).
+```./install.sh``` supports a custom installation prefix, see the "Manually" section above. adaptyst-server does not require the patched "perf" and should be compilable for various operating systems (the scripts are only tested on Linux though).
 
 ### Gentoo-based virtual machine image with frame pointers
 **WARNING: There is an issue with the CI/CD pipeline causing the VM images to be corrupted, so this installation option is not available now. Please use Docker/Apptainer/Singularity container images instead. This note will disappear when the problem is fixed. Sorry for the inconvenience!**
 
-Given the complexity of setting up a machine with a recent enough Linux kernel, frame pointers etc., we make available ready-to-use x86-64 Gentoo-based qcow2 images with AdaptivePerf set up. They're also configured for out-of-the-box reliable ```perf``` profiling, such as permanently-set profiling-related kernel parameters and ensuring that everything in the system is compiled with frame pointers.
+Given the complexity of setting up a machine with a recent enough Linux kernel, frame pointers etc., we make available ready-to-use x86-64 Gentoo-based qcow2 images with Adaptyst set up. They're also configured for out-of-the-box reliable ```perf``` profiling, such as permanently-set profiling-related kernel parameters and ensuring that everything in the system is compiled with frame pointers.
 
 The images are denoted either by "latest" (which corresponds to the latest commit in the ```main``` branch and **is recommended until the first non-dev release**) or by branch names and can be downloaded from https://cernbox.cern.ch/s/FAzoFWvh2kzNtUx. They must be booted in the UEFI mode.
 
 If an image you are looking for is corrupted or missing, please use the version with the ```backup-``` prefix if available.
 
 ### Container image
-To ease the deployment of AdaptivePerf, we also provide Docker and Apptainer/Singularity images based on Gentoo with all packages built with frame pointers. x86-64 only is available at the moment, with more architectures coming soon.
+To ease the deployment of Adaptyst, we also provide Docker and Apptainer/Singularity images based on Gentoo with all packages built with frame pointers. x86-64 only is available at the moment, with more architectures coming soon.
 
 #### Docker
 Please use:
-* **RECOMMENDED (until the first non-dev release):** ```gitlab-registry.cern.ch/adaptiveperf/adaptiveperf:latest``` for the latest commit in the ```main``` branch.
-* ```gitlab-registry.cern.ch/adaptiveperf/adaptiveperf:branch-<branch name>``` for the latest commit in a branch of your choice.
-* ```gitlab-registry.cern.ch/adaptiveperf/adaptiveperf:commit-<commit short SHA>``` for a **recent** (i.e. 30 days or newer) commit of your choice. The short SHA must have exactly 8 characters.
+* **RECOMMENDED (until the first non-dev release):** ```gitlab-registry.cern.ch/adaptyst/adaptyst:latest``` for the latest commit in the ```main``` branch.
+* ```gitlab-registry.cern.ch/adaptyst/adaptyst:branch-<branch name>``` for the latest commit in a branch of your choice.
+* ```gitlab-registry.cern.ch/adaptyst/adaptyst:commit-<commit short SHA>``` for a **recent** (i.e. 30 days or newer) commit of your choice. The short SHA must have exactly 8 characters.
 
 All images are public (no CERN login required), so no deployment to a non-CERN registry is planned.
 
@@ -115,41 +115,41 @@ The images are denoted either by "latest" (which corresponds to the latest commi
 If an image you are looking for is corrupted or missing, please use the version with the ```backup-``` prefix if available.
 
 ## How to use
-Before running AdaptivePerf for the first time, run ```sysctl kernel.perf_event_paranoid=-1```. Otherwise, the tool will refuse to run due to its inability to reliably obtain kernel stack traces. This is already done for the VM image.
+Before running Adaptyst for the first time, run ```sysctl kernel.perf_event_paranoid=-1```. Otherwise, the tool will refuse to run due to its inability to reliably obtain kernel stack traces. This is already done for the VM image.
 
 You also need to set the maximum number of stack entries to be collected by running ```sysctl kernel.perf_event_max_stack=<value>```, where ```<value>``` is a number of your choice **larger than or equal to** 1024. Otherwise, the off-CPU profiling will fail. The default value in the VM image is 1024.
 
 **IMPORTANT:** Max stack sizes larger than 1024 are currently not supported for off-CPU stacks! The maximum number of entries in off-CPU stacks is always set to 1024, regardless of the value of ```kernel.perf_event_max_stack```.
 
-If your machine has NUMA (non-uniform memory access), you should note that NUMA memory balancing in Linux limits the reliability of obtaining complete stacks across all CPUs / CPU cores. In this case, you must either disable NUMA balancing by running ```sysctl kernel.numa_balancing=0``` or run AdaptivePerf on a single NUMA node.
+If your machine has NUMA (non-uniform memory access), you should note that NUMA memory balancing in Linux limits the reliability of obtaining complete stacks across all CPUs / CPU cores. In this case, you must either disable NUMA balancing by running ```sysctl kernel.numa_balancing=0``` or run Adaptyst on a single NUMA node.
 
 To profile your program, please run the following command:
 ```
-adaptiveperf <command to be profiled>
+adaptyst <command to be profiled>
 ```
 
-**IMPORTANT:** If your command has whitespaces, you must run AdaptivePerf in one of these ways:
+**IMPORTANT:** If your command has whitespaces, you must run Adaptyst in one of these ways:
 ```
-adaptiveperf "<command to be profiled>"
+adaptyst "<command to be profiled>"
 ```
 or
 ```
-adaptiveperf -- <command to be profiled>
+adaptyst -- <command to be profiled>
 ```
 
-AdaptivePerf can be run as non-root as long as all of the requirements below are met:
-* The AdaptivePerf-patched "perf" executable has CAP_PERFMON and CAP_BPF capabilities set as permissive and effective (you can do it by running ```setcap cap_perfmon,cap_bpf+ep <path to "perf">```, the default path is ```/opt/adaptiveperf/perf/bin/perf```). **If you're in a container, the container itself must have these capabilities as well!**
+Adaptyst can be run as non-root as long as all of the requirements below are met:
+* The Adaptyst-patched "perf" executable has CAP_PERFMON and CAP_BPF capabilities set as permissive and effective (you can do it by running ```setcap cap_perfmon,cap_bpf+ep <path to "perf">```, the default path is ```/opt/adaptyst/perf/bin/perf```). **If you're in a container, the container itself must have these capabilities as well!**
 * You are part of the ```tracing``` group (if it doesn't exist, you must create it first).
 * ```/sys/kernel/tracing``` is mounted as tracefs **with permissions 750** or more lax **and as the ```tracing``` group**.
   * Mount ```/sys/kernel/tracing``` in a standard way if not mounted yet (i.e. run ```mount -t tracefs nodev /sys/kernel/tracing```).
   * Once ```/sys/kernel/tracing``` is mounted in a standard way, remount the directory by running ```mount -o remount,mode=0750,gid=<GID of the tracing group> /sys/kernel/tracing```.
   * You can also opt for updating your fstab file instead.
 
-If you want to see what extra options you can set (e.g. an on-CPU/off-CPU sampling frequency, the quiet mode), run ```adaptiveperf --help```.
+If you want to see what extra options you can set (e.g. an on-CPU/off-CPU sampling frequency, the quiet mode), run ```adaptyst --help```.
 
 After profiling is completed, you can check the results inside ```results```.
 
-You can run ```adaptiveperf``` multiple times, all profiling results will be saved inside the same ```results``` directory provided that every ```adaptiveperf``` execution is done inside the same working directory.
+You can run ```adaptyst``` multiple times, all profiling results will be saved inside the same ```results``` directory provided that every ```adaptyst``` execution is done inside the same working directory.
 
 The structure of ```results``` is as follows:
 * **(year)\_(month)\_(day)\_(hour)\_(minute)\_(second)\_(hostname)\_\_(command)**: the directory for a given profiling session
@@ -162,54 +162,54 @@ The structure of ```results``` is as follows:
     * **(PID)\_(TID).json**: all samples gathered by on-CPU/off-CPU profiling and custom perf event profiling (if any) stored in JSON, per thread/process.
     * **event\_dict.data**: mappings between custom perf events and their website titles as specified by the user (it is not created when no custom events are provided).
 
-It is recommended to use [AdaptivePerfHTML](https://github.com/AdaptivePerf/adaptiveperfhtml) for creating an interactive HTML summary of your profiling sessions.
+It is recommended to use [Adaptyst Analyser](https://github.com/Adaptyst/adaptyst-analyser) for creating an interactive website summarising your profiling sessions.
 
-## External instance of adaptiveperf-server
-AdaptivePerf runs adaptiveperf-server internally by default, which means that both profiling and profiling data (post-)processing are performed on the same machine. However, you can delegate the (post-)processing to an external instance of adaptiveperf-server running e.g. on a separate machine.
+## External instance of adaptyst-server
+Adaptyst runs adaptyst-server internally by default, which means that both profiling and profiling data (post-)processing are performed on the same machine. However, you can delegate the (post-)processing to an external instance of adaptyst-server running e.g. on a separate machine.
 
-To do this, run ```adaptiveperf-server``` first on the machine where you want the (post-)processing to be done and note down the IP address and port it prints. If you want to specify extra options (e.g. a custom IP address and/or port), look at the output of ```adaptiveperf-server --help```.
+To do this, run ```adaptyst-server``` first on the machine where you want the (post-)processing to be done and note down the IP address and port it prints. If you want to specify extra options (e.g. a custom IP address and/or port), look at the output of ```adaptyst-server --help```.
 
 Afterwards, run the following command on the machine with your program to be profiled:
 ```
-adaptiveperf -a <IP address>:<port> "<command to be profiled>"
+adaptyst -a <IP address>:<port> "<command to be profiled>"
 ```
 or
 ```
-adaptiveperf -a <IP address>:<port> -- <command to be profiled>
+adaptyst -a <IP address>:<port> -- <command to be profiled>
 ```
 (you are free to specify extra options as well)
 
-When AdaptivePerf finishes profiling, all results will be stored on the machine running ```adaptiveperf-server``` (**not the machine with the profiled program**).
+When Adaptyst finishes profiling, all results will be stored on the machine running ```adaptyst-server``` (**not the machine with the profiled program**).
 
 ## Documentation for contributors (Doxygen)
-If you want to contribute to AdaptivePerf or dive deeply into how it works, please check out the Doxygen documentation [here](https://adaptiveperf.github.io/contributors).
+If you want to contribute to Adaptyst or dive deeply into how it works, please check out the Doxygen documentation [here](https://adaptyst.github.io/contributors).
 
 You can also render it yourself by running ```doxygen Doxyfile``` inside the ```docs``` directory (you need to install Doxygen first).
 
 ## Troubleshooting
 
-### libaperfserv.so not found
-After installing AdaptivePerf/adaptiveperf-server, you may get an error like the one below when trying to run the tool on Linux:
+### libadaptystserv.so not found
+After installing Adaptyst/adaptyst-server, you may get an error like the one below when trying to run the tool on Linux:
 ```
-adaptiveperf: error while loading shared libraries: libaperfserv.so: cannot open shared object file: No such file or directory
+adaptyst: error while loading shared libraries: libadaptystserv.so: cannot open shared object file: No such file or directory
 ```
-If this happens, please add ```<your installation prefix>/lib``` (it's ```/usr/local/lib``` by default) to ```/etc/ld.so.conf``` and run ```ldconfig``` afterwards. Alternatively, run AdaptivePerf with ```<your installation prefix>/lib``` appended to the ```LD_LIBRARY_PATH``` environment variable.
+If this happens, please add ```<your installation prefix>/lib``` (it's ```/usr/local/lib``` by default) to ```/etc/ld.so.conf``` and run ```ldconfig``` afterwards. Alternatively, run Adaptyst with ```<your installation prefix>/lib``` appended to the ```LD_LIBRARY_PATH``` environment variable.
 
 ### Profiler "..." (perf-record / perf-script) has returned non-zero exit code
-If you get an error message similar to the one in the title, please look at the logs in the temporary directory printed by AdaptivePerf.
+If you get an error message similar to the one in the title, please look at the logs in the temporary directory printed by Adaptyst.
 
-If the logs mention "can't access trace events", permission denied issues, or problems with eBPF, please ensure that the requirements for running AdaptivePerf as non-root are met (see "How to use") or run AdaptivePerf as root. If it doesn't work or the logs specify a different problem (or don't say anything), feel free to file an issue on GitHub.
+If the logs mention "can't access trace events", permission denied issues, or problems with eBPF, please ensure that the requirements for running Adaptyst as non-root are met (see "How to use") or run Adaptyst as root. If it doesn't work or the logs specify a different problem (or don't say anything), feel free to file an issue on GitHub.
 
 ### One or more expected symbol maps haven't been found
 If you get a warning message as in the title, you can check whether your profiled program can be configured to emit "perf" symbol maps as documented [here](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/tools/perf/Documentation/jit-interface.txt).
 
 You should note that the lack of symbol maps **is not an error**, it will just make some symbol names unresolved and point to the name of an expected map file instead. This does not cause broken stack traces.
 
-### "perf" compilation fails when installing AdaptivePerf
-Compiling "perf" is an integral part of installing AdaptivePerf. When you get errors at this stage, please try running ```make clean``` inside ```linux/tools/perf``` first. Afterwards, if the errors persist and they point to some dependency missing (e.g. Clang), please install it and try again. **If you get complaints about a program/library missing which is not listed in this README, please install it as well and file an issue on GitHub!**
+### "perf" compilation fails when installing Adaptyst
+Compiling "perf" is an integral part of installing Adaptyst. When you get errors at this stage, please try running ```make clean``` inside ```linux/tools/perf``` first. Afterwards, if the errors persist and they point to some dependency missing (e.g. Clang), please install it and try again. **If you get complaints about a program/library missing which is not listed in this README, please install it as well and file an issue on GitHub!**
 
 If the solutions above don't help, you can create a new issue on GitHub.
 
 ## Acknowledgements
-The AdaptivePerf development is possible thanks to the following funding sources:
+The Adaptyst development is possible thanks to the following funding sources:
 * The European Union HE research and innovation programme, grant agreement No 101092877 (SYCLOPS).

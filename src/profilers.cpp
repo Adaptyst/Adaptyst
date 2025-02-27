@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #include "profilers.hpp"
@@ -125,7 +125,7 @@ namespace aperf {
                      "syscalls:sys_exit_execve,syscalls:sys_exit_execveat,"
                      "sched:sched_process_fork,sched:sched_process_exit",
                      "--sorted-stream", "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", APERF_SCRIPT_PATH "/adaptiveperf-syscall-process.py",
+      argv_script = {perf_path.string(), "script", "-s", APERF_SCRIPT_PATH "/adaptyst-syscall-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
     } else if (this->perf_event.name == "<main>") {
@@ -140,7 +140,7 @@ namespace aperf {
                      "--buffer-events", this->perf_event.options[2],
                      "--buffer-off-cpu-events", this->perf_event.options[3],
                      "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", APERF_SCRIPT_PATH "/adaptiveperf-process.py",
+      argv_script = {perf_path.string(), "script", "-s", APERF_SCRIPT_PATH "/adaptyst-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
     } else {
@@ -153,7 +153,7 @@ namespace aperf {
                      this->perf_event.name + "/period=" + this->perf_event.options[0] + "/",
                      "--buffer-events", this->perf_event.options[1],
                      "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", APERF_SCRIPT_PATH "/adaptiveperf-process.py",
+      argv_script = {perf_path.string(), "script", "-s", APERF_SCRIPT_PATH "/adaptyst-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
     }

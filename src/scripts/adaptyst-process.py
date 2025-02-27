@@ -1,4 +1,4 @@
-# AdaptivePerf: comprehensive profiling tool based on Linux perf
+# Adaptyst: a performance analysis tool
 # Copyright (C) CERN. See LICENSE for details.
 
 # This script uses the perf-script Python API.
@@ -128,7 +128,7 @@ def process_event(param_dict):
     #
     # Also, if a symbol name is detected to come from a perf symbol
     # map (i.e. the name of an executable/library is in form of
-    # perf-<number>.map), the path to the map is saved so that AdaptivePerf
+    # perf-<number>.map), the path to the map is saved so that Adaptyst
     # can copy it to the profiling results directory later.
     def process_callchain_elem(elem):
         sym_result = [f'[{elem["ip"]:#x}]', '']

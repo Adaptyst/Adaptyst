@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #include "entrypoint.hpp"
@@ -7,11 +7,11 @@
 
 namespace aperf {
   /**
-     Entry point to the AdaptivePerf backend (i.e. adaptiveperf-server)
+     Entry point to the Adaptyst backend (i.e. adaptyst-server)
      when it is run from the command line.
   */
   int server_entrypoint(int argc, char **argv) {
-    CLI::App app("Post-processing server for AdaptivePerf");
+    CLI::App app("Post-processing server for Adaptyst");
 
     app.formatter(std::make_shared<PrettyFormatter>());
 
@@ -83,7 +83,7 @@ namespace aperf {
 
         return 100;
       } catch (ConnectionException &e) {
-        std::cerr << "A connection error has occurred and adaptiveperf-server has to exit!" << std::endl;
+        std::cerr << "A connection error has occurred and adaptyst-server has to exit!" << std::endl;
         std::cerr << "You may want to check the address/port settings and the stability of " << std::endl;
         std::cerr << "your connection between the server and the client(s)." << std::endl;
         std::cerr << std::endl;
@@ -93,10 +93,10 @@ namespace aperf {
 
         return 1;
       } catch (...) {
-        std::cerr << "A fatal error has occurred and adaptiveperf-server has to exit!" << std::endl;
+        std::cerr << "A fatal error has occurred and adaptyst-server has to exit!" << std::endl;
         std::cerr << "The exception will be rethrown to aid debugging." << std::endl;
         std::cerr << std::endl;
-        std::cerr << "If this issue persists, please get in touch with the AdaptivePerf developers." << std::endl;
+        std::cerr << "If this issue persists, please get in touch with the Adaptyst developers." << std::endl;
         std::cerr << "----------" << std::endl;
         std::rethrow_exception(std::current_exception());
       }
