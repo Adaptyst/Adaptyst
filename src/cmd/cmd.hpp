@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #ifndef CMD_HPP_
@@ -10,7 +10,7 @@
 
 #define COLUMN_WIDTH 35
 
-namespace aperf {
+namespace adaptyst {
   /**
      A class ensuring that the help message is formatted in
      an eye-friendly way complying with the 80-character limit.

@@ -1,4 +1,4 @@
-//# AdaptivePerf: comprehensive profiling tool based on Linux perf
+//# Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #include "requirements.hpp"
@@ -11,7 +11,7 @@
 #include <numa.h>
 #endif
 
-namespace aperf {
+namespace adaptyst {
   std::string SysKernelDebugReq::get_name() {
     return "Presence of mounted /sys/kernel/debug";
   }
@@ -90,7 +90,7 @@ namespace aperf {
     max_stack.close();
 
     if (max_stack_value < 1024) {
-      print("kernel.perf_event_max_stack is less than 1024. AdaptivePerf will "
+      print("kernel.perf_event_max_stack is less than 1024. Adaptyst will "
             "crash because of this, so stopping here. Please run \"sysctl "
             "kernel.perf_event_max_stack=1024\" (or the same command with "
             "a number larger than 1024).", true, true);
@@ -150,27 +150,27 @@ namespace aperf {
       }
 
       if (count > 1) {
-        print("NUMA balancing is enabled and AdaptivePerf is running on more "
+        print("NUMA balancing is enabled and Adaptyst is running on more "
               "than 1 NUMA node!",
               true, true);
-        print("As this will result in broken stacks, AdaptivePerf will not run.",
+        print("As this will result in broken stacks, Adaptyst will not run.",
               true, true);
         print("Please disable balancing by running \"sysctl "
               "kernel.numa_balancing=0\" or "
-              "bind AdaptivePerf at least memory-wise "
+              "bind Adaptyst at least memory-wise "
               "to a single NUMA node, e.g. through numactl.",
               true, true);
         return false;
       }
 #else
-      print("NUMA balancing is enabled, but AdaptivePerf is compiled without "
+      print("NUMA balancing is enabled, but Adaptyst is compiled without "
             "libnuma support, so it cannot determine on how many NUMA nodes "
             "it is running!", true, true);
-      print("As this may result in broken stacks, AdaptivePerf will not run.",
+      print("As this may result in broken stacks, Adaptyst will not run.",
             true, true);
       print("Please disable balancing by running \"sysctl "
             "kernel.numa_balancing=0\" or "
-            "recompile AdaptivePerf with libnuma support, followed by "
+            "recompile Adaptyst with libnuma support, followed by "
             "binding the tool at least memory-wise "
             "to a single NUMA node (e.g. through numactl).", true, true);
       return false;

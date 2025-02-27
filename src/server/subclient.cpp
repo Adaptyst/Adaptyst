@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #include "server.hpp"
@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <unordered_map>
 
-namespace aperf {
+namespace adaptyst {
   void StdSubclient::recurse(nlohmann::json &cur_elem,
                              std::vector<std::pair<std::string, std::string> > &callchain_parts,
                              int callchain_index,

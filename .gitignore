@@ -225,9 +225,10 @@ pyrightconfig.json
 
 # End of https://www.toptal.com/developers/gitignore/api/emacs,python
 
-# adaptiveperf executables
-adaptiveperf
-adaptiveperf-server
+# Adaptyst executables
+adaptyst
+adaptyst-server
+libadaptystserv.so
 
 # Language server and debug files
 debug/

@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #include "process.hpp"
@@ -8,7 +8,7 @@
 #include <sys/wait.h>
 #endif
 
-namespace aperf {
+namespace adaptyst {
   Process::Process(std::vector<std::string> &command,
                    unsigned int buf_size) {
     if (command.empty()) {

@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #define __USE_POSIX
@@ -30,7 +30,7 @@
 #define NOTIFY_TIMEOUT 5
 #define FILE_TIMEOUT 30
 
-namespace aperf {
+namespace adaptyst {
   namespace fs = std::filesystem;
   namespace ch = std::chrono;
   using namespace std::chrono_literals;
@@ -41,9 +41,9 @@ namespace aperf {
      @param mask A CPU mask string, where the i-th character
                  defines the purpose of the i-th core as follows:
                  ' ' means "not used",
-                 'p' means "used for post-processing and profilers",
+                 'p' means "used for processing and profilers",
                  'c' means "used for the profiled command", and
-                 'b' means "used for both the profiled command and post-processing + profilers".
+                 'b' means "used for both the profiled command and processing + profilers".
   */
   CPUConfig::CPUConfig(std::string mask) {
     this->valid = false;
@@ -113,9 +113,9 @@ namespace aperf {
   /**
      Constructs a ServerConnInstrs object.
 
-     @param all_connection_instrs An adaptiveperf-server connection
+     @param all_connection_instrs An adaptyst-server connection
                                   instructions string sent
-                                  by adaptiveperf-server during the initial
+                                  by adaptyst-server during the initial
                                   setup phase. It is in form of
                                   "<method> <connection details>", where
                                   \<connection details\> is provided once or
@@ -143,14 +143,14 @@ namespace aperf {
      requesting these instructions.
 
      @param thread_count A number of threads expected to connect
-                         to adaptiveperf-server from the current
+                         to adaptyst-server from the current
                          profiler.
 
      @throw std::runtime_error When the sum of thread_count amongst
                                all get_instruction() calls within a
                                single ServerConnInstrs object
                                exceeds the number of \<connection details\>
-                               sent by adaptiveperf-server.
+                               sent by adaptyst-server.
   */
   std::string ServerConnInstrs::get_instructions(int thread_count) {
     std::string result = this->type;
@@ -174,12 +174,12 @@ namespace aperf {
      appropriate CPUConfig object, taking into account user considerations.
 
      @param post_processing_threads A number of cores that should be used
-                                    for post-processing and profiling. This
+                                    for processing and profiling. This
                                     should not be larger than the number of
                                     available cores minus 3. 0 marks all
                                     cores as available for all activities.
-     @param external_server         Indicates if post-processing is delegated to
-                                    an external instance of adaptiveperf-server.
+     @param external_server         Indicates if processing is delegated to
+                                    an external instance of adaptyst-server.
                                     If only 1 core is available, this must be
                                     set to true.
 
@@ -198,7 +198,7 @@ namespace aperf {
     }
 
     if (post_processing_threads == 0) {
-      print("AdaptivePerf called with -p 0, proceeding...",
+      print("Adaptyst called with -p 0, proceeding...",
             true, false);
 
       char mask[num_proc];
@@ -225,30 +225,30 @@ namespace aperf {
         if (external_server) {
           print("1 logical core detected, running everything on core #0 "
                 "thanks to delegation to an external instance of "
-                "adaptiveperf-server (you may still get inconsistent "
+                "adaptyst-server (you may still get inconsistent "
                 "results, but it's less likely due to lighter on-site "
                 "processing).", true, false);
           return CPUConfig("b");
         } else {
-          print("Running profiling along with post-processing is *NOT* "
+          print("Running profiling along with processing is *NOT* "
                 "recommended on a machine with only one logical core! "
                 "You are very likely to get inconsistent results due "
                 "to profiling threads interfering with the profiled "
                 "program.", true, true);
-          print("Please delegate post-processing to another machine by "
+          print("Please delegate processing to another machine by "
                 "using the -a flag. If you want to proceed anyway, "
-                "run AdaptivePerf with -p 0.", true, true);
+                "run Adaptyst with -p 0.", true, true);
           return CPUConfig("");
         }
 
       case 2:
-        print("2 logical cores detected, running post-processing and "
+        print("2 logical cores detected, running processing and "
               "profilers on core #0 and the command on core #1.", true,
               false);
         return CPUConfig("pc");
 
       case 3:
-        print("3 logical cores detected, running post-processing and "
+        print("3 logical cores detected, running processing and "
               "profilers on cores #0 and #1 and the command on core #2.",
               true, false);
         return CPUConfig("ppc");
@@ -273,12 +273,12 @@ namespace aperf {
 
      @param profilers        A list of profilers used to profile the command.
      @param command_elements A command to be profiled, in form of a vector of string parts
-                             (e.g. "adaptiveperf -f 100 test" becomes ["adaptiveperf",
+                             (e.g. "adaptyst -f 100 test" becomes ["adaptyst",
                              "-f", "100", "test"]).
-     @param server_address   The address and port of an external instance of adaptiveperf-server.
+     @param server_address   The address and port of an external instance of adaptyst-server.
                              If the external instance usage is not planned, server_address
                              should be an empty string.
-     @param buf_size         A size of buffer for communication with adaptiveperf-server,
+     @param buf_size         A size of buffer for communication with adaptyst-server,
                              in bytes.
      @param warmup           A number of seconds between the profilers indicating their
                              readiness and the actual execution of the command. This may have to
@@ -381,9 +381,9 @@ namespace aperf {
     spawned_children.push_back(wrapper_id);
 
     if (server_address == "") {
-      print("Starting adaptiveperf-server and profilers...", true, false);
+      print("Starting adaptyst-server and profilers...", true, false);
     } else {
-      print("Connecting to adaptiveperf-server and starting profilers...", true, false);
+      print("Connecting to adaptyst-server and starting profilers...", true, false);
     }
 
     std::unique_ptr<Connection> connection;
@@ -423,8 +423,8 @@ namespace aperf {
         try {
           client->process(results_dir);
         } catch (std::exception &e) {
-          print("An unknown error has occurred in adaptiveperf-server! If the issue persists, "
-                "please contact the AdaptivePerf developers, citing \"" +
+          print("An unknown error has occurred in adaptyst-server! If the issue persists, "
+                "please contact the Adaptyst developers, citing \"" +
                 std::string(e.what()) + "\".", true, true);
           print("For investigating what has gone wrong, you can check the files created in " +
                 tmp_dir.string() + ".", false, true);
@@ -452,7 +452,7 @@ namespace aperf {
     std::string all_connection_instrs = connection->read();
 
     if (std::regex_match(all_connection_instrs, std::regex("^error.*$"))) {
-      print("adaptiveperf-server has encountered an error (start)! Exiting.", true, true);
+      print("adaptyst-server has encountered an error (start)! Exiting.", true, true);
       return 2;
     }
 
@@ -463,7 +463,7 @@ namespace aperf {
                           result_processed, true);
     }
 
-    print("Waiting for profilers to signal their readiness. If AdaptivePerf "
+    print("Waiting for profilers to signal their readiness. If Adaptyst "
           "hangs here, you may want to check the files in " +
           tmp_dir.string() + ".", true, false);
 
@@ -564,7 +564,7 @@ namespace aperf {
     }
 
     if (notification_msg != "start_profile") {
-      print("adaptiveperf-server has sent something else than a notification "
+      print("adaptyst-server has sent something else than a notification "
             "of the profiler readiness! Exiting.", true, true);
       return 2;
     }
@@ -601,7 +601,7 @@ namespace aperf {
     notification_msg = connection->read();
 
     if (notification_msg != "tstamp_ack") {
-      print("adaptiveperf-server has sent something else than a notification "
+      print("adaptyst-server has sent something else than a notification "
             "of acknowledging the profile start timestamp receipt! Exiting.", true, true);
       return 2;
     }
@@ -625,7 +625,7 @@ namespace aperf {
     std::string msg = connection->read();
 
     if (msg != "out_files" && msg != "profiling_finished") {
-      print("adaptiveperf-server has not indicated its successful completion! Exiting.",
+      print("adaptyst-server has not indicated its successful completion! Exiting.",
             true, true);
       return 2;
     }
@@ -850,7 +850,7 @@ namespace aperf {
                             general_match,
                             std::regex("^(\\S+) (.+)$"))) {
         print("Received incorrect connection "
-              "instructions for file transfer from adaptiveperf-server! "
+              "instructions for file transfer from adaptyst-server! "
               "Exiting.", true, true);
         return 2;
       }
@@ -866,7 +866,7 @@ namespace aperf {
                               std::regex("^(\\S+)_(\\d+)$"))) {
           print("Received incorrect connection "
                 "instructions for file transfer (tcp) from "
-                "adaptiveperf-server! Exiting.", true, true);
+                "adaptyst-server! Exiting.", true, true);
           return 2;
         }
 
@@ -886,7 +886,7 @@ namespace aperf {
         };
       } else {
         print("File transfer type \"" + general_match[1].str() + "\" suggested by "
-              "adaptiveperf-server is not supported! Exiting.", true, true);
+              "adaptyst-server is not supported! Exiting.", true, true);
         return 2;
       }
 
@@ -1081,7 +1081,7 @@ namespace aperf {
     msg = connection->read();
 
     if (msg != "finished") {
-      print("adaptiveperf-server has not indicated its successful completion! Exiting.",
+      print("adaptyst-server has not indicated its successful completion! Exiting.",
             true, true);
       return 2;
     }
@@ -1094,7 +1094,7 @@ namespace aperf {
     auto overall_end_time =
       ch::duration_cast<ch::milliseconds>(ch::system_clock::now().time_since_epoch()).count();
 
-    print("Command execution and post-processing done in ~" +
+    print("Command execution and processing done in ~" +
           std::to_string(overall_end_time - start_time) + " ms!", false, false);
 
     return 0;

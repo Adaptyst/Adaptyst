@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #ifndef REQUIREMENTS_HPP_
@@ -6,7 +6,7 @@
 
 #include "profiling.hpp"
 
-namespace aperf {
+namespace adaptyst {
   /**
      A class describing the requirement of /sys/kernel/debug
      being mounted.
@@ -43,7 +43,7 @@ namespace aperf {
      NUMA-specific mitigations.
 
      The behaviour of this class depends on whether
-     AdaptivePerf is compiled with libnuma support.
+     Adaptyst is compiled with libnuma support.
   */
   class NUMAMitigationReq : public Requirement {
   protected:

@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #ifndef PRINT_HPP_
@@ -6,7 +6,7 @@
 
 #include <string>
 
-namespace aperf {
+namespace adaptyst {
   /**
      Indicates whether the quiet mode is enabled.
 

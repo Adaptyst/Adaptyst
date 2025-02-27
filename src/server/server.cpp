@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #include "server.hpp"
@@ -6,7 +6,7 @@
 #include <iostream>
 #include <chrono>
 
-namespace aperf {
+namespace adaptyst {
   using namespace std::chrono_literals;
 
   /**
@@ -83,16 +83,16 @@ namespace aperf {
       for (int i = 0; i < threads.size(); i++) {
         try {
           threads[i].get();
-        } catch (aperf::ConnectionException &e) {
+        } catch (adaptyst::ConnectionException &e) {
           std::cerr << "Warning: Connection error in client " << i << ", you will not ";
           std::cerr << "get reliable results from them!" << std::endl;
 
           std::cerr << "Error details: " << e.what() << std::endl;
         }
       }
-    } catch (aperf::AlreadyInUseException &e) {
+    } catch (adaptyst::AlreadyInUseException &e) {
       throw e;
-    } catch (aperf::ConnectionException &e) {
+    } catch (adaptyst::ConnectionException &e) {
       throw e;
     } catch (...) {
       std::rethrow_exception(std::current_exception());

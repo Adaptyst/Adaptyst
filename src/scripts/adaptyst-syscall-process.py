@@ -1,4 +1,4 @@
-# AdaptivePerf: comprehensive profiling tool based on Linux perf
+# Adaptyst: a performance analysis tool
 # Copyright (C) CERN. See LICENSE for details.
 
 # This script uses the perf-script Python API.
@@ -73,7 +73,7 @@ def syscall_callback(stack, ret_value):
     #
     # Also, if a symbol name is detected to come from a perf symbol
     # map (i.e. the name of an executable/library is in form of
-    # perf-<number>.map), the path to the map is saved so that AdaptivePerf
+    # perf-<number>.map), the path to the map is saved so that Adaptyst
     # can copy it to the profiling results directory later.
     def process_callchain_elem(elem):
         sym_result = [f'[{elem["ip"]:#x}]', '']
@@ -120,7 +120,7 @@ def syscall_tree_callback(syscall_type, comm_name, pid, tid, time,
 def trace_begin():
     global event_stream, frontend_stream
 
-    serv_connect = os.environ['APERF_SERV_CONNECT'].split(' ')
+    serv_connect = os.environ['ADAPTYST_SERV_CONNECT'].split(' ')
     parts = serv_connect[1].split('_')
 
     if serv_connect[0] == 'tcp':
@@ -132,7 +132,7 @@ def trace_begin():
         event_stream.write('connect'.encode('ascii'))
         event_stream.flush()
 
-    frontend_connect = os.environ['APERF_CONNECT'].split(' ')
+    frontend_connect = os.environ['ADAPTYST_CONNECT'].split(' ')
     instrs = frontend_connect[1:]
     parts = instrs[0].split('_')
 

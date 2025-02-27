@@ -14,17 +14,17 @@ if(COMMAND cmake_policy)
   endif()
 endif()
 
-option(SERVER_ONLY "Compile only adaptiveperf-server (OS-portable)" OFF)
-option(ENABLE_TESTS "Enable AdaptivePerf automated tests" OFF)
-set(APERF_SCRIPT_PATH "/opt/adaptiveperf" CACHE STRING "Path where AdaptivePerf helper scripts should be installed into")
-set(APERF_CONFIG_PATH "/etc/adaptiveperf.conf" CACHE STRING "Path where AdaptivePerf config file should be stored in")
+option(SERVER_ONLY "Compile only adaptyst-server (OS-portable)" OFF)
+option(ENABLE_TESTS "Enable Adaptyst automated tests" OFF)
+set(ADAPTYST_SCRIPT_PATH "/opt/adaptyst" CACHE STRING "Path where Adaptyst helper scripts should be installed into")
+set(ADAPTYST_CONFIG_PATH "/etc/adaptyst.conf" CACHE STRING "Path where Adaptyst config file should be stored in")
 
 if(SERVER_ONLY)
-  project(adaptiveperf-server
-    DESCRIPTION "Post-processing server for AdaptivePerf"
+  project(adaptyst-server
+    DESCRIPTION "Processing server for Adaptyst"
     LANGUAGES CXX)
 else()
-  project(adaptiveperf
+  project(adaptyst
     DESCRIPTION "Comprehensive profiling tool based on Linux perf"
     LANGUAGES CXX)
 endif()
@@ -67,22 +67,22 @@ endif()
 add_library(server_entrypoint.o OBJECT src/server/entrypoint.cpp)
 target_include_directories(server_entrypoint.o PRIVATE ${CMAKE_SOURCE_DIR}/src/cmd)
 
-add_library(aperfserv SHARED)
-target_link_libraries(aperfserv PUBLIC nlohmann_json::nlohmann_json)
-target_link_libraries(aperfserv PUBLIC Poco::Foundation Poco::Net)
-target_link_libraries(aperfserv PUBLIC LibArchive::LibArchive)
-target_link_libraries(aperfserv PRIVATE server.o client.o subclient.o socket.o archive.o)
+add_library(adaptystserv SHARED)
+target_link_libraries(adaptystserv PUBLIC nlohmann_json::nlohmann_json)
+target_link_libraries(adaptystserv PUBLIC Poco::Foundation Poco::Net)
+target_link_libraries(adaptystserv PUBLIC LibArchive::LibArchive)
+target_link_libraries(adaptystserv PRIVATE server.o client.o subclient.o socket.o archive.o)
 
-add_executable(adaptiveperf-server
+add_executable(adaptyst-server
   src/main.cpp)
 
-target_compile_definitions(adaptiveperf-server PRIVATE SERVER_ONLY)
-target_link_libraries(adaptiveperf-server PUBLIC Poco::Foundation Poco::Net)
-target_link_libraries(adaptiveperf-server PUBLIC CLI11::CLI11)
-target_link_libraries(adaptiveperf-server PRIVATE aperfserv server_entrypoint.o version.o)
+target_compile_definitions(adaptyst-server PRIVATE SERVER_ONLY)
+target_link_libraries(adaptyst-server PUBLIC Poco::Foundation Poco::Net)
+target_link_libraries(adaptyst-server PUBLIC CLI11::CLI11)
+target_link_libraries(adaptyst-server PRIVATE adaptystserv server_entrypoint.o version.o)
 
 if(NOT SERVER_ONLY)
-  add_executable(adaptiveperf
+  add_executable(adaptyst
     src/main.cpp)
 
   add_library(main_entrypoint.o OBJECT src/entrypoint.cpp)
@@ -94,8 +94,8 @@ if(NOT SERVER_ONLY)
   add_library(requirements.o OBJECT src/requirements.cpp)
   add_library(process.o OBJECT src/process.cpp)
 
-  target_compile_definitions(profilers.o PRIVATE APERF_SCRIPT_PATH="${APERF_SCRIPT_PATH}")
-  target_compile_definitions(main_entrypoint.o PRIVATE APERF_CONFIG_FILE="${APERF_CONFIG_PATH}")
+  target_compile_definitions(profilers.o PRIVATE ADAPTYST_SCRIPT_PATH="${ADAPTYST_SCRIPT_PATH}")
+  target_compile_definitions(main_entrypoint.o PRIVATE ADAPTYST_CONFIG_FILE="${ADAPTYST_CONFIG_PATH}")
 
   find_package(Boost REQUIRED program_options)
 
@@ -103,13 +103,13 @@ if(NOT SERVER_ONLY)
     message(STATUS "Found Boost: headers inside ${Boost_INCLUDE_DIRS}, version ${Boost_VERSION_STRING}")
   endif()
 
-  target_link_libraries(adaptiveperf PUBLIC nlohmann_json::nlohmann_json)
-  target_link_libraries(adaptiveperf PUBLIC Poco::Foundation Poco::Net)
-  target_link_libraries(adaptiveperf PUBLIC CLI11::CLI11)
-  target_link_libraries(adaptiveperf PUBLIC Boost::program_options)
-  target_link_libraries(adaptiveperf PUBLIC LibArchive::LibArchive)
+  target_link_libraries(adaptyst PUBLIC nlohmann_json::nlohmann_json)
+  target_link_libraries(adaptyst PUBLIC Poco::Foundation Poco::Net)
+  target_link_libraries(adaptyst PUBLIC CLI11::CLI11)
+  target_link_libraries(adaptyst PUBLIC Boost::program_options)
+  target_link_libraries(adaptyst PUBLIC LibArchive::LibArchive)
 
-  target_include_directories(adaptiveperf PUBLIC ${Boost_INCLUDE_DIRS})
+  target_include_directories(adaptyst PUBLIC ${Boost_INCLUDE_DIRS})
 
   find_library(LIBNUMA
     NAMES numa
@@ -139,11 +139,11 @@ if(NOT SERVER_ONLY)
   if(LIBNUMA_AVAILABLE)
     target_compile_definitions(requirements.o PRIVATE LIBNUMA_AVAILABLE)
     target_include_directories(requirements.o PRIVATE ${LIBNUMA_INCLUDE})
-    target_link_libraries(adaptiveperf PUBLIC numa)
+    target_link_libraries(adaptyst PUBLIC numa)
   endif()
 
-  target_link_libraries(adaptiveperf PRIVATE aperfserv)
-  target_link_libraries(adaptiveperf PRIVATE
+  target_link_libraries(adaptyst PRIVATE adaptystserv)
+  target_link_libraries(adaptyst PRIVATE
     profiling.o requirements.o profilers.o print.o archive.o main_entrypoint.o process.o version.o)
 else()
   find_package(Boost REQUIRED)
@@ -152,7 +152,7 @@ else()
     message(STATUS "Found Boost: headers inside ${Boost_INCLUDE_DIRS}, version ${Boost_VERSION_STRING}")
   endif()
 
-  target_include_directories(aperfserv PUBLIC ${Boost_INCLUDE_DIRS})
+  target_include_directories(adaptystserv PUBLIC ${Boost_INCLUDE_DIRS})
 endif()
 
 if (ENABLE_TESTS)

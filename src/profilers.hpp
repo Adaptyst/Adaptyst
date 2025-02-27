@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #ifndef PROFILERS_HPP_
@@ -16,7 +16,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace aperf {
+namespace adaptyst {
   namespace fs = std::filesystem;
 
   /**

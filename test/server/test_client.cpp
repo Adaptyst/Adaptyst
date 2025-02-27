@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #include "mocks.hpp"
@@ -37,7 +37,7 @@ TEST_F(StdClientTest, StandardCommTest) {
 
     nlohmann::json results[subclients];
 
-    std::unique_ptr<aperf::Subclient::Factory> subclient_factory =
+    std::unique_ptr<adaptyst::Subclient::Factory> subclient_factory =
       std::make_unique<test::MockSubclient::Factory>([&](test::MockSubclient &s) {
         std::string result_str = "{}";
 
@@ -105,7 +105,7 @@ TEST_F(StdClientTest, StandardCommTest) {
           .WillRepeatedly(ReturnRef(results[index]));
       }, true);
 
-    std::unique_ptr<aperf::Connection> mock_connection =
+    std::unique_ptr<adaptyst::Connection> mock_connection =
       std::make_unique<StrictMock<test::MockConnection> >();
 
     int connection_index = 0;
@@ -182,7 +182,7 @@ TEST_F(StdClientTest, StandardCommTest) {
       EXPECT_CALL(connection, close).Times(1);
     }, false);
 
-    std::unique_ptr<aperf::Acceptor> mock_file_acceptor =
+    std::unique_ptr<adaptyst::Acceptor> mock_file_acceptor =
       mock_file_acceptor_factory.make_acceptor(UNLIMITED_ACCEPTED);
 
     test::MockConnection &connection = *((test::MockConnection *)
@@ -232,8 +232,8 @@ TEST_F(StdClientTest, StandardCommTest) {
     // A separate scope is needed for ensuring the correct order
     // of destructor calls (gmock may seg fault otherwise).
     {
-      aperf::StdClient::Factory factory(subclient_factory);
-      std::unique_ptr<aperf::Client> client = factory.make_client(mock_connection,
+      adaptyst::StdClient::Factory factory(subclient_factory);
+      std::unique_ptr<adaptyst::Client> client = factory.make_client(mock_connection,
                                                                   mock_file_acceptor,
                                                                   file_timeout_seconds);
       client->process();
@@ -294,7 +294,7 @@ TEST_F(StdClientTest, StandardCommTestNoValidFiles) {
 
     nlohmann::json results[subclients];
 
-    std::unique_ptr<aperf::Subclient::Factory> subclient_factory =
+    std::unique_ptr<adaptyst::Subclient::Factory> subclient_factory =
       std::make_unique<test::MockSubclient::Factory>([&](test::MockSubclient &s) {
         std::string result_str = "{}";
 
@@ -366,10 +366,10 @@ TEST_F(StdClientTest, StandardCommTestNoValidFiles) {
 
     }, false);
 
-    std::unique_ptr<aperf::Acceptor> mock_file_acceptor =
+    std::unique_ptr<adaptyst::Acceptor> mock_file_acceptor =
       mock_file_acceptor_factory.make_acceptor(UNLIMITED_ACCEPTED);
 
-    std::unique_ptr<aperf::Connection> mock_connection =
+    std::unique_ptr<adaptyst::Connection> mock_connection =
       std::make_unique<StrictMock<test::MockConnection> >();
 
     test::MockConnection &connection = *((test::MockConnection *)mock_connection.get());
@@ -416,8 +416,8 @@ TEST_F(StdClientTest, StandardCommTestNoValidFiles) {
     // A separate scope is needed for ensuring the correct order
     // of destructor calls (gmock may seg fault otherwise).
     {
-      aperf::StdClient::Factory factory(subclient_factory);
-      std::unique_ptr<aperf::Client> client = factory.make_client(mock_connection,
+      adaptyst::StdClient::Factory factory(subclient_factory);
+      std::unique_ptr<adaptyst::Client> client = factory.make_client(mock_connection,
                                                                   mock_file_acceptor,
                                                                   file_timeout_seconds);
       client->process();
@@ -463,7 +463,7 @@ TEST_F(StdClientTest, StandardCommTestNoFileTransfer) {
 
     nlohmann::json results[subclients];
 
-    std::unique_ptr<aperf::Subclient::Factory> subclient_factory =
+    std::unique_ptr<adaptyst::Subclient::Factory> subclient_factory =
       std::make_unique<test::MockSubclient::Factory>([&](test::MockSubclient &s) {
         std::string result_str = "{}";
 
@@ -527,9 +527,9 @@ TEST_F(StdClientTest, StandardCommTestNoFileTransfer) {
         EXPECT_CALL(s, get_result).Times(1).WillRepeatedly(ReturnRef(results[index]));
       }, true);
 
-    std::unique_ptr<aperf::Acceptor> mock_file_acceptor = nullptr;
+    std::unique_ptr<adaptyst::Acceptor> mock_file_acceptor = nullptr;
 
-    std::unique_ptr<aperf::Connection> mock_connection =
+    std::unique_ptr<adaptyst::Connection> mock_connection =
       std::make_unique<StrictMock<test::MockConnection> >();
 
     test::MockConnection &connection = *((test::MockConnection *)mock_connection.get());
@@ -552,8 +552,8 @@ TEST_F(StdClientTest, StandardCommTestNoFileTransfer) {
     // A separate scope is needed for ensuring the correct order
     // of destructor calls (gmock may seg fault otherwise).
     {
-      aperf::StdClient::Factory factory(subclient_factory);
-      std::unique_ptr<aperf::Client> client = factory.make_client(mock_connection,
+      adaptyst::StdClient::Factory factory(subclient_factory);
+      std::unique_ptr<adaptyst::Client> client = factory.make_client(mock_connection,
                                                                   mock_file_acceptor,
                                                                   file_timeout_seconds);
       client->process();
@@ -591,12 +591,12 @@ TEST_F(StdClientTest, InvalidCommTest1) {
     const unsigned long long file_timeout_seconds = 124941;
     int created_subclients = 0;
 
-    std::unique_ptr<aperf::Subclient::Factory> subclient_factory =
+    std::unique_ptr<adaptyst::Subclient::Factory> subclient_factory =
       std::make_unique<test::MockSubclient::Factory>([&](test::MockSubclient &s) {
         created_subclients++;
       }, true);
 
-    std::unique_ptr<aperf::Connection> mock_connection =
+    std::unique_ptr<adaptyst::Connection> mock_connection =
       std::make_unique<StrictMock<test::MockConnection> >();
 
     test::MockConnection &connection = *((test::MockConnection *)mock_connection.get());
@@ -613,9 +613,9 @@ TEST_F(StdClientTest, InvalidCommTest1) {
     // A separate scope is needed for ensuring the correct order
     // of destructor calls (gmock may seg fault otherwise).
     {
-      aperf::StdClient::Factory factory(subclient_factory);
-      std::unique_ptr<aperf::Acceptor> acceptor = nullptr;
-      std::unique_ptr<aperf::Client> client = factory.make_client(mock_connection,
+      adaptyst::StdClient::Factory factory(subclient_factory);
+      std::unique_ptr<adaptyst::Acceptor> acceptor = nullptr;
+      std::unique_ptr<adaptyst::Client> client = factory.make_client(mock_connection,
                                                                   acceptor,
                                                                   file_timeout_seconds);
       client->process();
@@ -630,12 +630,12 @@ TEST_F(StdClientTest, InvalidCommTest2) {
     const unsigned long long file_timeout_seconds = 124941;
     int created_subclients = 0;
 
-    std::unique_ptr<aperf::Subclient::Factory> subclient_factory =
+    std::unique_ptr<adaptyst::Subclient::Factory> subclient_factory =
       std::make_unique<test::MockSubclient::Factory>([&](test::MockSubclient &s) {
         created_subclients++;
       }, true);
 
-    std::unique_ptr<aperf::Connection> mock_connection =
+    std::unique_ptr<adaptyst::Connection> mock_connection =
       std::make_unique<StrictMock<test::MockConnection> >();
 
     test::MockConnection &connection = *((test::MockConnection *)mock_connection.get());
@@ -652,9 +652,9 @@ TEST_F(StdClientTest, InvalidCommTest2) {
     // A separate scope is needed for ensuring the correct order
     // of destructor calls (gmock may seg fault otherwise).
     {
-      aperf::StdClient::Factory factory(subclient_factory);
-      std::unique_ptr<aperf::Acceptor> acceptor = nullptr;
-      std::unique_ptr<aperf::Client> client = factory.make_client(mock_connection,
+      adaptyst::StdClient::Factory factory(subclient_factory);
+      std::unique_ptr<adaptyst::Acceptor> acceptor = nullptr;
+      std::unique_ptr<adaptyst::Client> client = factory.make_client(mock_connection,
                                                                   acceptor,
                                                                   file_timeout_seconds);
       client->process();
@@ -669,12 +669,12 @@ TEST_F(StdClientTest, InvalidCommTest3) {
     const unsigned long long file_timeout_seconds = 124941;
     int created_subclients = 0;
 
-    std::unique_ptr<aperf::Subclient::Factory> subclient_factory =
+    std::unique_ptr<adaptyst::Subclient::Factory> subclient_factory =
       std::make_unique<test::MockSubclient::Factory>([&](test::MockSubclient &s) {
         created_subclients++;
       }, true);
 
-    std::unique_ptr<aperf::Connection> mock_connection =
+    std::unique_ptr<adaptyst::Connection> mock_connection =
       std::make_unique<StrictMock<test::MockConnection> >();
 
     test::MockConnection &connection = *((test::MockConnection *)mock_connection.get());
@@ -691,9 +691,9 @@ TEST_F(StdClientTest, InvalidCommTest3) {
     // A separate scope is needed for ensuring the correct order
     // of destructor calls (gmock may seg fault otherwise).
     {
-      aperf::StdClient::Factory factory(subclient_factory);
-      std::unique_ptr<aperf::Acceptor> acceptor = nullptr;
-      std::unique_ptr<aperf::Client> client = factory.make_client(mock_connection,
+      adaptyst::StdClient::Factory factory(subclient_factory);
+      std::unique_ptr<adaptyst::Acceptor> acceptor = nullptr;
+      std::unique_ptr<adaptyst::Client> client = factory.make_client(mock_connection,
                                                                   acceptor,
                                                                   file_timeout_seconds);
       client->process();
@@ -708,12 +708,12 @@ TEST_F(StdClientTest, InvalidCommTest4) {
     const unsigned long long file_timeout_seconds = 124941;
     int created_subclients = 0;
 
-    std::unique_ptr<aperf::Subclient::Factory> subclient_factory =
+    std::unique_ptr<adaptyst::Subclient::Factory> subclient_factory =
       std::make_unique<test::MockSubclient::Factory>([&](test::MockSubclient &s) {
         created_subclients++;
       }, true);
 
-    std::unique_ptr<aperf::Connection> mock_connection =
+    std::unique_ptr<adaptyst::Connection> mock_connection =
       std::make_unique<StrictMock<test::MockConnection> >();
 
     test::MockConnection &connection = *((test::MockConnection *)mock_connection.get());
@@ -730,9 +730,9 @@ TEST_F(StdClientTest, InvalidCommTest4) {
     // A separate scope is needed for ensuring the correct order
     // of destructor calls (gmock may seg fault otherwise).
     {
-      aperf::StdClient::Factory factory(subclient_factory);
-      std::unique_ptr<aperf::Acceptor> acceptor = nullptr;
-      std::unique_ptr<aperf::Client> client = factory.make_client(mock_connection,
+      adaptyst::StdClient::Factory factory(subclient_factory);
+      std::unique_ptr<adaptyst::Acceptor> acceptor = nullptr;
+      std::unique_ptr<adaptyst::Client> client = factory.make_client(mock_connection,
                                                                   acceptor,
                                                                   file_timeout_seconds);
       client->process();
@@ -747,12 +747,12 @@ TEST_F(StdClientTest, InvalidCommTest5) {
     const unsigned long long file_timeout_seconds = 124941;
     int created_subclients = 0;
 
-    std::unique_ptr<aperf::Subclient::Factory> subclient_factory =
+    std::unique_ptr<adaptyst::Subclient::Factory> subclient_factory =
       std::make_unique<test::MockSubclient::Factory>([&](test::MockSubclient &s) {
         created_subclients++;
       }, true);
 
-    std::unique_ptr<aperf::Connection> mock_connection =
+    std::unique_ptr<adaptyst::Connection> mock_connection =
       std::make_unique<StrictMock<test::MockConnection> >();
 
     test::MockConnection &connection = *((test::MockConnection *)mock_connection.get());
@@ -769,9 +769,9 @@ TEST_F(StdClientTest, InvalidCommTest5) {
     // A separate scope is needed for ensuring the correct order
     // of destructor calls (gmock may seg fault otherwise).
     {
-      aperf::StdClient::Factory factory(subclient_factory);
-      std::unique_ptr<aperf::Acceptor> acceptor = nullptr;
-      std::unique_ptr<aperf::Client> client = factory.make_client(mock_connection,
+      adaptyst::StdClient::Factory factory(subclient_factory);
+      std::unique_ptr<adaptyst::Acceptor> acceptor = nullptr;
+      std::unique_ptr<adaptyst::Client> client = factory.make_client(mock_connection,
                                                                   acceptor,
                                                                   file_timeout_seconds);
       client->process();
@@ -786,12 +786,12 @@ TEST_F(StdClientTest, InvalidCommTest6) {
     const unsigned long long file_timeout_seconds = 124941;
     int created_subclients = 0;
 
-    std::unique_ptr<aperf::Subclient::Factory> subclient_factory =
+    std::unique_ptr<adaptyst::Subclient::Factory> subclient_factory =
       std::make_unique<test::MockSubclient::Factory>([&](test::MockSubclient &s) {
         created_subclients++;
       }, true);
 
-    std::unique_ptr<aperf::Connection> mock_connection =
+    std::unique_ptr<adaptyst::Connection> mock_connection =
       std::make_unique<StrictMock<test::MockConnection> >();
 
     test::MockConnection &connection = *((test::MockConnection *)mock_connection.get());
@@ -808,9 +808,9 @@ TEST_F(StdClientTest, InvalidCommTest6) {
     // A separate scope is needed for ensuring the correct order
     // of destructor calls (gmock may seg fault otherwise).
     {
-      aperf::StdClient::Factory factory(subclient_factory);
-      std::unique_ptr<aperf::Acceptor> acceptor = nullptr;
-      std::unique_ptr<aperf::Client> client = factory.make_client(mock_connection,
+      adaptyst::StdClient::Factory factory(subclient_factory);
+      std::unique_ptr<adaptyst::Acceptor> acceptor = nullptr;
+      std::unique_ptr<adaptyst::Client> client = factory.make_client(mock_connection,
                                                                   acceptor,
                                                                   file_timeout_seconds);
       client->process();

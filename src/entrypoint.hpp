@@ -1,15 +1,15 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #ifndef ENTRYPOINT_HPP_
 #define ENTRYPOINT_HPP_
 
 /**
-   AdaptivePerf namespace.
+   Adaptyst namespace.
 */
-namespace aperf {
+namespace adaptyst {
   /**
-     The version of AdaptivePerf.
+     The version of Adaptyst.
   */
   extern const char *version;
 

@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #include "socket.hpp"
@@ -13,7 +13,7 @@
 #include <Poco/FileStream.h>
 #include <Poco/Net/SocketStream.h>
 
-namespace aperf {
+namespace adaptyst {
   class charstreambuf : public std::streambuf {
   public:
     charstreambuf(std::unique_ptr<char> &begin, unsigned int length) {

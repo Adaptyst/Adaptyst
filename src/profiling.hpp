@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #ifndef PROFILING_HPP_
@@ -16,7 +16,7 @@
 #include <thread>
 #include "server/socket.hpp"
 
-namespace aperf {
+namespace adaptyst {
   namespace fs = std::filesystem;
 
   /**
@@ -65,7 +65,7 @@ namespace aperf {
      A class describing the configuration of CPU cores for profiling.
 
      Specifically, CPUConfig describes what cores should be used for
-     post-processing + profiling, what cores should be used for running
+     processing + profiling, what cores should be used for running
      the command, what cores should be used for both, and what cores should
      not be used at all.
   */
@@ -85,8 +85,8 @@ namespace aperf {
   };
 
   /**
-     A class describing adaptiveperf-server connection instructions
-     for profilers, sent by adaptiveperf-server during the initial
+     A class describing adaptyst-server connection instructions
+     for profilers, sent by adaptyst-server during the initial
      setup phase.
   */
   class ServerConnInstrs {
@@ -123,8 +123,8 @@ namespace aperf {
        @param pid                 The PID of a process the profiler should
                                   be attached to. This may be left unused by
                                   classes deriving from Profiler.
-       @param connection_instrs   adaptiveperf-server connection
-                                  instructions, sent by adaptiveperf-server
+       @param connection_instrs   adaptyst-server connection
+                                  instructions, sent by adaptyst-server
                                   during the initial setup phase.
        @param result_out          The path to the "out" directory of
                                   results of the current profiling session.

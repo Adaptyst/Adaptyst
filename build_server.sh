@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# AdaptivePerf: comprehensive profiling tool based on Linux perf
+# Adaptyst: a performance analysis tool
 # Copyright (C) CERN. See LICENSE for details.
 
 set -e
@@ -29,12 +29,12 @@ function error() {
 trap "error" ERR
 
 if [[ $1 == "-h" || $1 == "--help" ]]; then
-    echo "Script for building adaptiveperf-server only."
+    echo "Script for building adaptyst-server only."
     echo "Usage: ./build_server.sh [optional CMake options]"
     exit 0
 fi
 
-echo_main "Building adaptiveperf-server..."
+echo_main "Building adaptyst-server..."
 
 if [[ -d build ]]; then
     echo_sub "Non-empty build dir detected! Recompiling."
@@ -45,13 +45,13 @@ if [[ -d build ]]; then
 else
     mkdir build
     echo "#!/bin/bash" > build/make.sh
-    echo "cmake --build . && mv libaperfserv.so adaptiveperf-server ../" >> build/make.sh
+    echo "cmake --build . && mv libadaptystserv.so adaptyst-server ../" >> build/make.sh
     chmod +x build/make.sh
 
     cd build
     cmake .. -DSERVER_ONLY=ON $@
     cmake --build .
-    mv libaperfserv.so adaptiveperf-server ../
+    mv libadaptystserv.so adaptyst-server ../
 fi
 
 echo_main "Done! You can run install.sh now."

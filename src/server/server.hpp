@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #ifndef SERVER_HPP_
@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-namespace aperf {
+namespace adaptyst {
   /**
      An interface whose implementation can be sent a notification
      by a different thread.

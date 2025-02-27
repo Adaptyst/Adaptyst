@@ -6,7 +6,7 @@
 #include <filesystem>
 #include <nlohmann/json.hpp>
 
-namespace aperf {
+namespace adaptyst {
   void create_src_archive(Archive &archive,
                           std::unordered_set<fs::path> &src_paths,
                           bool close) {

@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #include "profilers.hpp"
@@ -10,11 +10,11 @@
 #include <fcntl.h>
 #include <nlohmann/json.hpp>
 
-#ifndef APERF_SCRIPT_PATH
-#define APERF_SCRIPT_PATH "."
+#ifndef ADAPTYST_SCRIPT_PATH
+#define ADAPTYST_SCRIPT_PATH "."
 #endif
 
-namespace aperf {
+namespace adaptyst {
   /**
      Constructs a PerfEvent object corresponding to thread tree
      profiling.
@@ -36,11 +36,11 @@ namespace aperf {
                                   0 disables off-CPU profiling.
      @param buffer_events         A number of on-CPU events that
                                   should be buffered before sending
-                                  them for post-processing. 1
+                                  them for processing. 1
                                   effectively disables buffering.
      @param buffer_off_cpu_events A number of off-CPU events that
                                   should be buffered before sending
-                                  them for post-processing. 0 leaves
+                                  them for processing. 0 leaves
                                   the default adaptive buffering, 1
                                   effectively disables buffering.
   */
@@ -65,7 +65,7 @@ namespace aperf {
                           "do a sample on every X occurrences of the
                           event".
      @param buffer_events A number of events that should be buffered
-                          before sending them for post-processing. 1
+                          before sending them for processing. 1
                           effectively disables buffering.
   */
   PerfEvent::PerfEvent(std::string name,
@@ -125,7 +125,7 @@ namespace aperf {
                      "syscalls:sys_exit_execve,syscalls:sys_exit_execveat,"
                      "sched:sched_process_fork,sched:sched_process_exit",
                      "--sorted-stream", "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", APERF_SCRIPT_PATH "/adaptiveperf-syscall-process.py",
+      argv_script = {perf_path.string(), "script", "-s", ADAPTYST_SCRIPT_PATH "/adaptyst-syscall-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
     } else if (this->perf_event.name == "<main>") {
@@ -140,7 +140,7 @@ namespace aperf {
                      "--buffer-events", this->perf_event.options[2],
                      "--buffer-off-cpu-events", this->perf_event.options[3],
                      "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", APERF_SCRIPT_PATH "/adaptiveperf-process.py",
+      argv_script = {perf_path.string(), "script", "-s", ADAPTYST_SCRIPT_PATH "/adaptyst-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
     } else {
@@ -153,7 +153,7 @@ namespace aperf {
                      this->perf_event.name + "/period=" + this->perf_event.options[0] + "/",
                      "--buffer-events", this->perf_event.options[1],
                      "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", APERF_SCRIPT_PATH "/adaptiveperf-process.py",
+      argv_script = {perf_path.string(), "script", "-s", ADAPTYST_SCRIPT_PATH "/adaptyst-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
     }
@@ -162,12 +162,12 @@ namespace aperf {
     this->record_proc->set_redirect_stderr(stderr_record);
 
     this->script_proc = std::make_unique<Process>(argv_script);
-    this->script_proc->add_env("APERF_SERV_CONNECT", instrs);
+    this->script_proc->add_env("ADAPTYST_SERV_CONNECT", instrs);
 
     if (this->acceptor.get() != nullptr) {
       std::string instrs = this->acceptor->get_type() + " " +
                            this->acceptor->get_connection_instructions();
-      this->script_proc->add_env("APERF_CONNECT", instrs);
+      this->script_proc->add_env("ADAPTYST_CONNECT", instrs);
     }
 
     this->script_proc->set_redirect_stdout(stdout);

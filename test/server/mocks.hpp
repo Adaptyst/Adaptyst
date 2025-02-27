@@ -1,4 +1,4 @@
-// AdaptivePerf: comprehensive profiling tool based on Linux perf
+// Adaptyst: a performance analysis tool
 // Copyright (C) CERN. See LICENSE for details.
 
 #ifndef MOCKS_HPP_
@@ -38,20 +38,20 @@ namespace test {
     }
   }
 
-  class MockNotifiable : public aperf::Notifiable {
+  class MockNotifiable : public adaptyst::Notifiable {
   public:
     MOCK_METHOD(void, notify, (), (override));
   };
 
-  class MockSubclient : public aperf::Subclient {
+  class MockSubclient : public adaptyst::Subclient {
   private:
-    aperf::Notifiable &context;
+    adaptyst::Notifiable &context;
 
   protected:
-    MockSubclient(aperf::Notifiable &context) : context(context) {}
+    MockSubclient(adaptyst::Notifiable &context) : context(context) {}
 
   public:
-    class Factory : public aperf::Subclient::Factory {
+    class Factory : public adaptyst::Subclient::Factory {
     private:
       std::function<void(MockSubclient &)> init;
       bool call_constructor;
@@ -63,7 +63,7 @@ namespace test {
         this->call_constructor = call_constructor;
       }
 
-      std::unique_ptr<Subclient> make_subclient(aperf::Notifiable &context,
+      std::unique_ptr<Subclient> make_subclient(adaptyst::Notifiable &context,
                                                 std::string profiled_filename,
                                                 unsigned int buf_size) {
         std::unique_ptr<StrictMock<MockSubclient> > subclient(new StrictMock<MockSubclient>(context));
@@ -81,7 +81,7 @@ namespace test {
       }
     };
 
-    MOCK_METHOD(void, construct, (aperf::Notifiable &,
+    MOCK_METHOD(void, construct, (adaptyst::Notifiable &,
                                   std::string,
                                   unsigned int));
     MOCK_METHOD(void, real_process, ());
@@ -94,7 +94,7 @@ namespace test {
     }
   };
 
-  class MockClient : public aperf::Client {
+  class MockClient : public adaptyst::Client {
   private:
     volatile bool *interrupted = nullptr;
 
@@ -102,7 +102,7 @@ namespace test {
     MockClient() { }
 
   public:
-    class Factory : public aperf::Client::Factory {
+    class Factory : public adaptyst::Client::Factory {
     private:
       std::function<void(MockClient &)> init;
       bool call_constructor;
@@ -114,8 +114,8 @@ namespace test {
         this->call_constructor = call_constructor;
       }
 
-      std::unique_ptr<Client> make_client(std::unique_ptr<aperf::Connection> &connection,
-                                          std::unique_ptr<aperf::Acceptor> &file_acceptor,
+      std::unique_ptr<Client> make_client(std::unique_ptr<adaptyst::Connection> &connection,
+                                          std::unique_ptr<adaptyst::Acceptor> &file_acceptor,
                                           unsigned long long file_timeout_speed) {
         std::unique_ptr<StrictMock<MockClient> > client(new StrictMock<MockClient>());
         this->init(*client);
@@ -130,8 +130,8 @@ namespace test {
       }
     };
 
-    MOCK_METHOD(void, construct, (aperf::Connection *,
-                                  aperf::Acceptor *,
+    MOCK_METHOD(void, construct, (adaptyst::Connection *,
+                                  adaptyst::Acceptor *,
                                   unsigned long long));
     MOCK_METHOD(void, real_process, (fs::path));
     MOCK_METHOD(void, notify, (), (override));
@@ -149,7 +149,7 @@ namespace test {
     }
   };
 
-  class MockConnection : public aperf::Connection {
+  class MockConnection : public adaptyst::Connection {
   public:
     ~MockConnection() { this->close(); }
 
@@ -161,7 +161,7 @@ namespace test {
     MOCK_METHOD(void, write, (fs::path), (override));
   };
 
-  class MockAcceptor : public aperf::Acceptor {
+  class MockAcceptor : public adaptyst::Acceptor {
   private:
     std::function<void(MockConnection &)> connection_init;
 
@@ -171,7 +171,7 @@ namespace test {
       this->connection_init = connection_init;
     }
 
-    std::unique_ptr<aperf::Connection> accept_connection(unsigned int buf_size) {
+    std::unique_ptr<adaptyst::Connection> accept_connection(unsigned int buf_size) {
       this->real_accept(buf_size);
 
       std::unique_ptr<MockConnection> connection = std::make_unique<MockConnection>();
@@ -180,7 +180,7 @@ namespace test {
     }
 
   public:
-    class Factory : public aperf::Acceptor::Factory {
+    class Factory : public adaptyst::Acceptor::Factory {
     private:
       std::function<void(MockAcceptor &)> acceptor_init;
       std::function<void(MockConnection &)> connection_init;
@@ -219,7 +219,7 @@ namespace test {
     }
 
     MOCK_METHOD(void, construct, (int));
-    MOCK_METHOD(std::unique_ptr<aperf::Connection>, real_accept, (unsigned int));
+    MOCK_METHOD(std::unique_ptr<adaptyst::Connection>, real_accept, (unsigned int));
     MOCK_METHOD(std::string, get_connection_instructions, (), (override));
     MOCK_METHOD(void, close, (), (override));
   };
