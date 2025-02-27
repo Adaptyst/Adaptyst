@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-namespace aperf {
+namespace adaptyst {
   /**
      An interface whose implementation can be sent a notification
      by a different thread.

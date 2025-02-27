@@ -6,7 +6,7 @@
 
 #include <string>
 
-namespace aperf {
+namespace adaptyst {
   /**
      Indicates whether the quiet mode is enabled.
 

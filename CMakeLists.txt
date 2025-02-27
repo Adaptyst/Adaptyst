@@ -16,8 +16,8 @@ endif()
 
 option(SERVER_ONLY "Compile only adaptyst-server (OS-portable)" OFF)
 option(ENABLE_TESTS "Enable Adaptyst automated tests" OFF)
-set(APERF_SCRIPT_PATH "/opt/adaptyst" CACHE STRING "Path where Adaptyst helper scripts should be installed into")
-set(APERF_CONFIG_PATH "/etc/adaptyst.conf" CACHE STRING "Path where Adaptyst config file should be stored in")
+set(ADAPTYST_SCRIPT_PATH "/opt/adaptyst" CACHE STRING "Path where Adaptyst helper scripts should be installed into")
+set(ADAPTYST_CONFIG_PATH "/etc/adaptyst.conf" CACHE STRING "Path where Adaptyst config file should be stored in")
 
 if(SERVER_ONLY)
   project(adaptyst-server
@@ -94,8 +94,8 @@ if(NOT SERVER_ONLY)
   add_library(requirements.o OBJECT src/requirements.cpp)
   add_library(process.o OBJECT src/process.cpp)
 
-  target_compile_definitions(profilers.o PRIVATE APERF_SCRIPT_PATH="${APERF_SCRIPT_PATH}")
-  target_compile_definitions(main_entrypoint.o PRIVATE APERF_CONFIG_FILE="${APERF_CONFIG_PATH}")
+  target_compile_definitions(profilers.o PRIVATE ADAPTYST_SCRIPT_PATH="${ADAPTYST_SCRIPT_PATH}")
+  target_compile_definitions(main_entrypoint.o PRIVATE ADAPTYST_CONFIG_FILE="${ADAPTYST_CONFIG_PATH}")
 
   find_package(Boost REQUIRED program_options)
 

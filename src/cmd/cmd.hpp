@@ -10,7 +10,7 @@
 
 #define COLUMN_WIDTH 35
 
-namespace aperf {
+namespace adaptyst {
   /**
      A class ensuring that the help message is formatted in
      an eye-friendly way complying with the 80-character limit.

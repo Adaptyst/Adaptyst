@@ -6,7 +6,7 @@
 
 #include "profiling.hpp"
 
-namespace aperf {
+namespace adaptyst {
   /**
      A class describing the requirement of /sys/kernel/debug
      being mounted.

@@ -13,7 +13,7 @@
 #include <unordered_set>
 #include <time.h>
 
-namespace aperf {
+namespace adaptyst {
   namespace fs = std::filesystem;
 
   StdClient::StdClient(std::shared_ptr<Subclient::Factory> &subclient_factory,

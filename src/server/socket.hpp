@@ -19,7 +19,7 @@
 #define FILE_BUFFER_SIZE 1048576
 #endif
 
-namespace aperf {
+namespace adaptyst {
   namespace net = Poco::Net;
   namespace fs = std::filesystem;
 

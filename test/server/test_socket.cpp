@@ -110,8 +110,8 @@ protected:
 
 TEST(TCPAcceptorTest, GetInstrWithNoSubsequentPorts) {
   const unsigned short port = 2475;
-  aperf::TCPAcceptor::Factory factory("127.0.0.1", port, false);
-  std::unique_ptr<aperf::Acceptor> acceptor = factory.make_acceptor(UNLIMITED_ACCEPTED);
+  adaptyst::TCPAcceptor::Factory factory("127.0.0.1", port, false);
+  std::unique_ptr<adaptyst::Acceptor> acceptor = factory.make_acceptor(UNLIMITED_ACCEPTED);
   ASSERT_EQ(acceptor->get_connection_instructions(), "127.0.0.1_" + std::to_string(port));
 }
 
@@ -124,8 +124,8 @@ TEST(TCPAcceptorTest, GetInstrWithSubsequentPorts) {
   socket2.bind(Poco::Net::SocketAddress("127.0.0.1", port + 1));
 
   // Test
-  aperf::TCPAcceptor::Factory factory("127.0.0.1", port, true);
-  std::unique_ptr<aperf::Acceptor> acceptor = factory.make_acceptor(UNLIMITED_ACCEPTED);
+  adaptyst::TCPAcceptor::Factory factory("127.0.0.1", port, true);
+  std::unique_ptr<adaptyst::Acceptor> acceptor = factory.make_acceptor(UNLIMITED_ACCEPTED);
   ASSERT_EQ(acceptor->get_connection_instructions(), "127.0.0.1_" + std::to_string(port + 2));
 }
 
@@ -133,13 +133,13 @@ TEST_F(TCPAcceptorTestWithSocket, AcceptWithTwoMaxAccepted) {
   const unsigned int buf_size1 = 1024;
   const unsigned int buf_size2 = 2048;
 
-  aperf::TCPAcceptor::Factory factory("127.0.0.1", port, false);
-  std::unique_ptr<aperf::Acceptor> acceptor = factory.make_acceptor(2);
+  adaptyst::TCPAcceptor::Factory factory("127.0.0.1", port, false);
+  std::unique_ptr<adaptyst::Acceptor> acceptor = factory.make_acceptor(2);
 
-  std::unique_ptr<aperf::Connection> connection1 = acceptor->accept(buf_size1);
+  std::unique_ptr<adaptyst::Connection> connection1 = acceptor->accept(buf_size1);
   ASSERT_EQ(connection1->get_buf_size(), buf_size1);
 
-  std::unique_ptr<aperf::Connection> connection2 = acceptor->accept(buf_size2);
+  std::unique_ptr<adaptyst::Connection> connection2 = acceptor->accept(buf_size2);
   ASSERT_EQ(connection2->get_buf_size(), buf_size2);
 
   ASSERT_THROW({
@@ -164,7 +164,7 @@ inline void test_socket_correctness(const unsigned int buf_size,
   socket.listen();
   Poco::Net::StreamSocket sock = socket.acceptConnection();
 
-  aperf::TCPSocket tcp_socket(sock, buf_size);
+  adaptyst::TCPSocket tcp_socket(sock, buf_size);
   ASSERT_EQ(tcp_socket.get_address(), "127.0.0.1");
   ASSERT_EQ(tcp_socket.get_port(), port);
   ASSERT_EQ(tcp_socket.get_buf_size(), buf_size);
@@ -195,7 +195,7 @@ inline void test_socket_correctness(const unsigned int buf_size,
 
   ASSERT_THROW({
       tcp_socket.read(buf, 6, 5);
-    }, aperf::TimeoutException);
+    }, adaptyst::TimeoutException);
 
   tcp_socket.write("123test!@#*@!$^^$@!(#*#&)@!$)*&!)&@#&@!$&!(*ABCDE", true);
   tcp_socket.write(SOCKET_LOREM_IPSUM2, false);

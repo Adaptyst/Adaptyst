@@ -7,7 +7,7 @@
 /**
    Adaptyst namespace.
 */
-namespace aperf {
+namespace adaptyst {
 #ifndef ENTRYPOINT_HPP_
   /**
      The version of Adaptyst.

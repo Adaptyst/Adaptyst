@@ -18,7 +18,7 @@ TEST(StdSubclientTest, StandardCommTest1) {
   const std::string profiled_filename = "test_command";
   const unsigned int buf_size = 1024;
 
-  std::unique_ptr<aperf::Acceptor::Factory> acceptor_factory =
+  std::unique_ptr<adaptyst::Acceptor::Factory> acceptor_factory =
     std::make_unique<test::MockAcceptor::Factory>([&](test::MockAcceptor &a) {
       EXPECT_CALL(a, construct(1)).Times(1);
       EXPECT_CALL(a, real_accept(buf_size)).Times(1);
@@ -47,8 +47,8 @@ TEST(StdSubclientTest, StandardCommTest1) {
       EXPECT_CALL(c, close).Times(1);
     }, true);
 
-  aperf::StdSubclient::Factory factory(acceptor_factory);
-  std::unique_ptr<aperf::Subclient> subclient = factory.make_subclient(notifiable,
+  adaptyst::StdSubclient::Factory factory(acceptor_factory);
+  std::unique_ptr<adaptyst::Subclient> subclient = factory.make_subclient(notifiable,
                                                                        profiled_filename,
                                                                        buf_size);
 
@@ -66,7 +66,7 @@ TEST(StdSubclientTest, StandardCommTest2) {
   const std::string profiled_filename = "test";
   const unsigned int buf_size = 1024;
 
-  std::unique_ptr<aperf::Acceptor::Factory> acceptor_factory =
+  std::unique_ptr<adaptyst::Acceptor::Factory> acceptor_factory =
     std::make_unique<test::MockAcceptor::Factory>([&](test::MockAcceptor &a) {
       EXPECT_CALL(a, construct(1)).Times(1);
       EXPECT_CALL(a, real_accept(buf_size)).Times(1);
@@ -113,8 +113,8 @@ TEST(StdSubclientTest, StandardCommTest2) {
       EXPECT_CALL(c, close).Times(1);
     }, true);
 
-  aperf::StdSubclient::Factory factory(acceptor_factory);
-  std::unique_ptr<aperf::Subclient> subclient = factory.make_subclient(notifiable,
+  adaptyst::StdSubclient::Factory factory(acceptor_factory);
+  std::unique_ptr<adaptyst::Subclient> subclient = factory.make_subclient(notifiable,
                                                                        profiled_filename,
                                                                        buf_size);
 
@@ -132,7 +132,7 @@ TEST(StdSubclientTest, StandardCommTest3) {
   const std::string profiled_filename = "test_command";
   const unsigned int buf_size = 1024;
 
-  std::unique_ptr<aperf::Acceptor::Factory> acceptor_factory =
+  std::unique_ptr<adaptyst::Acceptor::Factory> acceptor_factory =
     std::make_unique<test::MockAcceptor::Factory>([&](test::MockAcceptor &a) {
       EXPECT_CALL(a, construct(1)).Times(1);
       EXPECT_CALL(a, real_accept(buf_size)).Times(1);
@@ -145,8 +145,8 @@ TEST(StdSubclientTest, StandardCommTest3) {
       EXPECT_CALL(c, close).Times(1);
     }, true);
 
-  aperf::StdSubclient::Factory factory(acceptor_factory);
-  std::unique_ptr<aperf::Subclient> subclient = factory.make_subclient(notifiable,
+  adaptyst::StdSubclient::Factory factory(acceptor_factory);
+  std::unique_ptr<adaptyst::Subclient> subclient = factory.make_subclient(notifiable,
                                                                        profiled_filename,
                                                                        buf_size);
 
@@ -164,7 +164,7 @@ TEST(StdSubclientTest, StandardCommTest4) {
   const std::string profiled_filename = "test_command";
   const unsigned int buf_size = 1024;
 
-  std::unique_ptr<aperf::Acceptor::Factory> acceptor_factory =
+  std::unique_ptr<adaptyst::Acceptor::Factory> acceptor_factory =
     std::make_unique<test::MockAcceptor::Factory>([&](test::MockAcceptor &a) {
       EXPECT_CALL(a, construct(1)).Times(1);
       EXPECT_CALL(a, real_accept(buf_size)).Times(1);
@@ -199,8 +199,8 @@ TEST(StdSubclientTest, StandardCommTest4) {
       EXPECT_CALL(c, close).Times(1);
     }, true);
 
-  aperf::StdSubclient::Factory factory(acceptor_factory);
-  std::unique_ptr<aperf::Subclient> subclient = factory.make_subclient(notifiable,
+  adaptyst::StdSubclient::Factory factory(acceptor_factory);
+  std::unique_ptr<adaptyst::Subclient> subclient = factory.make_subclient(notifiable,
                                                                        profiled_filename,
                                                                        buf_size);
 
@@ -218,7 +218,7 @@ TEST(StdSubclientTest, StandardCommTest5) {
   const std::string profiled_filename = "test_command";
   const unsigned int buf_size = 1024;
 
-  std::unique_ptr<aperf::Acceptor::Factory> acceptor_factory =
+  std::unique_ptr<adaptyst::Acceptor::Factory> acceptor_factory =
     std::make_unique<test::MockAcceptor::Factory>([&](test::MockAcceptor &a) {
       EXPECT_CALL(a, construct(1)).Times(1);
       EXPECT_CALL(a, real_accept(buf_size)).Times(1);
@@ -242,8 +242,8 @@ TEST(StdSubclientTest, StandardCommTest5) {
       EXPECT_CALL(c, close).Times(1);
     }, true);
 
-  aperf::StdSubclient::Factory factory(acceptor_factory);
-  std::unique_ptr<aperf::Subclient> subclient = factory.make_subclient(notifiable,
+  adaptyst::StdSubclient::Factory factory(acceptor_factory);
+  std::unique_ptr<adaptyst::Subclient> subclient = factory.make_subclient(notifiable,
                                                                        profiled_filename,
                                                                        buf_size);
 
@@ -259,7 +259,7 @@ TEST(StdSubclientTest, GetConnectionInstructionsTest) {
   const std::string profiled_filename = "test_command";
   const unsigned int buf_size = 1024;
 
-  std::unique_ptr<aperf::Acceptor::Factory> acceptor_factory =
+  std::unique_ptr<adaptyst::Acceptor::Factory> acceptor_factory =
     std::make_unique<test::MockAcceptor::Factory>([&](test::MockAcceptor &a) {
       EXPECT_CALL(a, construct(1)).Times(1);
       EXPECT_CALL(a, get_connection_instructions).Times(1)
@@ -269,8 +269,8 @@ TEST(StdSubclientTest, GetConnectionInstructionsTest) {
 
     }, true);
 
-  aperf::StdSubclient::Factory factory(acceptor_factory);
-  std::unique_ptr<aperf::Subclient> subclient = factory.make_subclient(notifiable,
+  adaptyst::StdSubclient::Factory factory(acceptor_factory);
+  std::unique_ptr<adaptyst::Subclient> subclient = factory.make_subclient(notifiable,
                                                                        profiled_filename,
                                                                        buf_size);
 
@@ -285,7 +285,7 @@ TEST(StdSubclientTest, InvalidCommTest1) {
   const std::string profiled_filename = "test_command";
   const unsigned int buf_size = 1024;
 
-  std::unique_ptr<aperf::Acceptor::Factory> acceptor_factory =
+  std::unique_ptr<adaptyst::Acceptor::Factory> acceptor_factory =
     std::make_unique<test::MockAcceptor::Factory>([&](test::MockAcceptor &a) {
       EXPECT_CALL(a, construct(1)).Times(1);
       EXPECT_CALL(a, real_accept(buf_size)).Times(1);
@@ -332,8 +332,8 @@ TEST(StdSubclientTest, InvalidCommTest1) {
       EXPECT_CALL(c, close).Times(1);
     }, true);
 
-  aperf::StdSubclient::Factory factory(acceptor_factory);
-  std::unique_ptr<aperf::Subclient> subclient = factory.make_subclient(notifiable,
+  adaptyst::StdSubclient::Factory factory(acceptor_factory);
+  std::unique_ptr<adaptyst::Subclient> subclient = factory.make_subclient(notifiable,
                                                                        profiled_filename,
                                                                        buf_size);
 
@@ -351,7 +351,7 @@ TEST(StdSubclientTest, InvalidCommTest2) {
   const std::string profiled_filename = "test_command";
   const unsigned int buf_size = 1024;
 
-  std::unique_ptr<aperf::Acceptor::Factory> acceptor_factory =
+  std::unique_ptr<adaptyst::Acceptor::Factory> acceptor_factory =
     std::make_unique<test::MockAcceptor::Factory>([&](test::MockAcceptor &a) {
       EXPECT_CALL(a, construct(1)).Times(1);
       EXPECT_CALL(a, real_accept(buf_size)).Times(1);
@@ -386,8 +386,8 @@ TEST(StdSubclientTest, InvalidCommTest2) {
       EXPECT_CALL(c, close).Times(1);
     }, true);
 
-  aperf::StdSubclient::Factory factory(acceptor_factory);
-  std::unique_ptr<aperf::Subclient> subclient = factory.make_subclient(notifiable,
+  adaptyst::StdSubclient::Factory factory(acceptor_factory);
+  std::unique_ptr<adaptyst::Subclient> subclient = factory.make_subclient(notifiable,
                                                                        profiled_filename,
                                                                        buf_size);
 
@@ -405,7 +405,7 @@ TEST(StdSubclientTest, InvalidCommTest3) {
   const std::string profiled_filename = "test";
   const unsigned int buf_size = 1024;
 
-  std::unique_ptr<aperf::Acceptor::Factory> acceptor_factory =
+  std::unique_ptr<adaptyst::Acceptor::Factory> acceptor_factory =
     std::make_unique<test::MockAcceptor::Factory>([&](test::MockAcceptor &a) {
       EXPECT_CALL(a, construct(1)).Times(1);
       EXPECT_CALL(a, real_accept(buf_size)).Times(1);
@@ -455,8 +455,8 @@ TEST(StdSubclientTest, InvalidCommTest3) {
       EXPECT_CALL(c, close).Times(1);
     }, true);
 
-  aperf::StdSubclient::Factory factory(acceptor_factory);
-  std::unique_ptr<aperf::Subclient> subclient = factory.make_subclient(notifiable,
+  adaptyst::StdSubclient::Factory factory(acceptor_factory);
+  std::unique_ptr<adaptyst::Subclient> subclient = factory.make_subclient(notifiable,
                                                                        profiled_filename,
                                                                        buf_size);
 

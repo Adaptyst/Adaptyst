@@ -12,11 +12,11 @@
 #include <regex>
 #include <sys/wait.h>
 
-#ifndef APERF_CONFIG_FILE
-#define APERF_CONFIG_FILE ""
+#ifndef ADAPTYST_CONFIG_FILE
+#define ADAPTYST_CONFIG_FILE ""
 #endif
 
-namespace aperf {
+namespace adaptyst {
   namespace ch = std::chrono;
   using namespace std::chrono_literals;
 
@@ -230,10 +230,10 @@ namespace aperf {
       print_notice();
 
       print("Reading config file...", false, false);
-      std::ifstream config_f(APERF_CONFIG_FILE);
+      std::ifstream config_f(ADAPTYST_CONFIG_FILE);
 
       if (!config_f) {
-        print("Cannot open " APERF_CONFIG_FILE "!", true, true);
+        print("Cannot open " ADAPTYST_CONFIG_FILE "!", true, true);
         return 2;
       }
 
@@ -254,7 +254,7 @@ namespace aperf {
         if (!std::regex_match(line, match,
                               std::regex("^(\\S+)\\s*\\=\\s*(.+)$"))) {
           print("Syntax error in line " + std::to_string(cur_line) + " of "
-                APERF_CONFIG_FILE "!", true, true);
+                ADAPTYST_CONFIG_FILE "!", true, true);
           return 2;
         }
 
@@ -264,7 +264,7 @@ namespace aperf {
 
       if (config.find("perf_path") == config.end()) {
         print("You must specify the path to your patched \"perf\" installation "
-              "(perf_path) in " APERF_CONFIG_FILE "!", true, true);
+              "(perf_path) in " ADAPTYST_CONFIG_FILE "!", true, true);
         return 2;
       }
 
@@ -273,14 +273,14 @@ namespace aperf {
 
       if (!fs::exists(perf_path)) {
         print(perf_path.string() + " does not exist!", true, true);
-        print("Hint: You may want to verify the contents of " APERF_CONFIG_FILE ".",
+        print("Hint: You may want to verify the contents of " ADAPTYST_CONFIG_FILE ".",
               false, true);
         return 2;
       }
 
       if (!fs::is_regular_file(perf_path)) {
         print(perf_path.string() + " is not a regular file!", true, true);
-        print("Hint: You may want to verify the contents of " APERF_CONFIG_FILE ".",
+        print("Hint: You may want to verify the contents of " ADAPTYST_CONFIG_FILE ".",
               false, true);
         return 2;
       }

@@ -10,7 +10,7 @@
 #include <filesystem>
 #include <boost/predef.h>
 
-namespace aperf {
+namespace adaptyst {
   namespace fs = std::filesystem;
 
   class Process {

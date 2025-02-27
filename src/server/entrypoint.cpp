@@ -5,7 +5,7 @@
 #include "server.hpp"
 #include "cmd.hpp"
 
-namespace aperf {
+namespace adaptyst {
   /**
      Entry point to the Adaptyst backend (i.e. adaptyst-server)
      when it is run from the command line.

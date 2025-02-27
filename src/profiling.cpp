@@ -30,7 +30,7 @@
 #define NOTIFY_TIMEOUT 5
 #define FILE_TIMEOUT 30
 
-namespace aperf {
+namespace adaptyst {
   namespace fs = std::filesystem;
   namespace ch = std::chrono;
   using namespace std::chrono_literals;

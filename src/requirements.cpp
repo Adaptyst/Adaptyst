@@ -11,7 +11,7 @@
 #include <numa.h>
 #endif
 
-namespace aperf {
+namespace adaptyst {
   std::string SysKernelDebugReq::get_name() {
     return "Presence of mounted /sys/kernel/debug";
   }

@@ -7,7 +7,7 @@
 /**
    Adaptyst namespace.
 */
-namespace aperf {
+namespace adaptyst {
   /**
      The version of Adaptyst.
   */

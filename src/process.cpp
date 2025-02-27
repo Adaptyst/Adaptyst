@@ -8,7 +8,7 @@
 #include <sys/wait.h>
 #endif
 
-namespace aperf {
+namespace adaptyst {
   Process::Process(std::vector<std::string> &command,
                    unsigned int buf_size) {
     if (command.empty()) {

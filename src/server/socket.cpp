@@ -13,7 +13,7 @@
 #include <Poco/FileStream.h>
 #include <Poco/Net/SocketStream.h>
 
-namespace aperf {
+namespace adaptyst {
   class charstreambuf : public std::streambuf {
   public:
     charstreambuf(std::unique_ptr<char> &begin, unsigned int length) {

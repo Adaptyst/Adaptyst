@@ -10,7 +10,7 @@
 #include <archive.h>
 #include <archive_entry.h>
 
-namespace aperf {
+namespace adaptyst {
   namespace fs = std::filesystem;
 
   /**

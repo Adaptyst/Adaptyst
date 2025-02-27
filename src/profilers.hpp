@@ -16,7 +16,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace aperf {
+namespace adaptyst {
   namespace fs = std::filesystem;
 
   /**

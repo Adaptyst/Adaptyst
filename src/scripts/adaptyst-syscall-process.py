@@ -120,7 +120,7 @@ def syscall_tree_callback(syscall_type, comm_name, pid, tid, time,
 def trace_begin():
     global event_stream, frontend_stream
 
-    serv_connect = os.environ['APERF_SERV_CONNECT'].split(' ')
+    serv_connect = os.environ['ADAPTYST_SERV_CONNECT'].split(' ')
     parts = serv_connect[1].split('_')
 
     if serv_connect[0] == 'tcp':
@@ -132,7 +132,7 @@ def trace_begin():
         event_stream.write('connect'.encode('ascii'))
         event_stream.flush()
 
-    frontend_connect = os.environ['APERF_CONNECT'].split(' ')
+    frontend_connect = os.environ['ADAPTYST_CONNECT'].split(' ')
     instrs = frontend_connect[1:]
     parts = instrs[0].split('_')
 

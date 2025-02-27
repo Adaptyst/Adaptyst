@@ -52,31 +52,31 @@ mkdir -p $prefix/bin $prefix/lib
 if [[ -f adaptyst ]]; then
     if [[ -f build/CMakeCache.txt ]]; then
         echo_main "Compiling and installing Adaptyst-patched \"perf\"..."
-        aperf_prefix=$(sed -rn 's/APERF_SCRIPT_PATH.*=(.*)/\1/p' build/CMakeCache.txt)
-        aperf_config=$(sed -rn 's/APERF_CONFIG_PATH.*=(.*)/\1/p' build/CMakeCache.txt)
+        adaptyst_prefix=$(sed -rn 's/ADAPTYST_SCRIPT_PATH.*=(.*)/\1/p' build/CMakeCache.txt)
+        adaptyst_config=$(sed -rn 's/ADAPTYST_CONFIG_PATH.*=(.*)/\1/p' build/CMakeCache.txt)
 
-        if [[ $aperf_prefix == "" ]]; then
-            echo_sub "Could not find APERF_SCRIPT_PATH in build/CMakeCache.txt!" 1
+        if [[ $adaptyst_prefix == "" ]]; then
+            echo_sub "Could not find ADAPTYST_SCRIPT_PATH in build/CMakeCache.txt!" 1
             exit 2
         fi
 
-        if [[ $aperf_config == "" ]]; then
-            echo_sub "Could not find APERF_CONFIG_PATH in build/CMakeCache.txt!" 1
+        if [[ $adaptyst_config == "" ]]; then
+            echo_sub "Could not find ADAPTYST_CONFIG_PATH in build/CMakeCache.txt!" 1
             exit 2
         fi
 
-        if [[ $aperf_prefix == */ ]]; then
-            aperf_perf_prefix="${aperf_prefix}perf"
+        if [[ $adaptyst_prefix == */ ]]; then
+            adaptyst_perf_prefix="${adaptyst_prefix}perf"
         else
-            aperf_perf_prefix="$aperf_prefix/perf"
+            adaptyst_perf_prefix="$adaptyst_prefix/perf"
         fi
 
-        echo_sub "Adaptyst-patched \"perf\" will be installed in $aperf_perf_prefix."
+        echo_sub "Adaptyst-patched \"perf\" will be installed in $adaptyst_perf_prefix."
         echo_sub "Press any key to continue or Ctrl-C to cancel."
 
         read -srn 1
 
-        mkdir -p "$aperf_perf_prefix"
+        mkdir -p "$adaptyst_perf_prefix"
 
         if [[ ! -d linux/tools/perf ]]; then
             echo_sub "linux submodule seems to be missing, pulling it..."
@@ -85,16 +85,16 @@ if [[ -f adaptyst ]]; then
 
         old_dir=$(pwd)
         cd linux/tools/perf
-        make install BUILD_BPF_SKEL=1 prefix="$aperf_perf_prefix"
+        make install BUILD_BPF_SKEL=1 prefix="$adaptyst_perf_prefix"
         cd $old_dir
 
         echo_main "Installing adaptyst..."
         cp adaptyst $prefix/bin
-        echo "perf_path=$aperf_perf_prefix" > "$aperf_config"
+        echo "perf_path=$adaptyst_perf_prefix" > "$adaptyst_config"
 
         echo_main "Installing Adaptyst \"perf\" scripts..."
         cd src/scripts
-        make install prefix="$aperf_prefix"
+        make install prefix="$adaptyst_prefix"
         cd $old_dir
     else
         echo_main "Adaptyst cannot be installed because there's no CMakeCache.txt in build dir!" 1

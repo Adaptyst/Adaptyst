@@ -16,7 +16,7 @@
 #include <thread>
 #include "server/socket.hpp"
 
-namespace aperf {
+namespace adaptyst {
   namespace fs = std::filesystem;
 
   /**

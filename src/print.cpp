@@ -6,7 +6,7 @@
 #include <boost/algorithm/string.hpp>
 #include <mutex>
 
-namespace aperf {
+namespace adaptyst {
   /**
      The mutex for ensuring that only one thread prints at a time.
   */

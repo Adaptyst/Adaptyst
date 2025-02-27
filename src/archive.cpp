@@ -4,7 +4,7 @@
 #include "archive.hpp"
 #include <fstream>
 
-namespace aperf {
+namespace adaptyst {
   Archive::Archive(fs::path path, unsigned int buf_size) {
     this->arch = nullptr;
     this->arch_entry = nullptr;

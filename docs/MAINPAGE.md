@@ -9,8 +9,8 @@ To get started, please:
 These are the CMake-set preprocessor definitions you should be aware of:
 * ```SERVER_ONLY```: set when Adaptyst is compiled only with the backend component (i.e. adaptyst-server).
 * ```LIBNUMA_AVAILABLE```: set when Adaptyst is compiled with libnuma support.
-* ```APERF_CONFIG_FILE```: the path to the Adaptyst config file, CMake sets it to ```/etc/adaptyst.conf``` by default.
-* ```APERF_SCRIPT_PATH```: the path to the directory with Adaptyst "perf" Python scripts, CMake sets it to ```/opt/adaptyst``` by default.
+* ```ADAPTYST_CONFIG_FILE```: the path to the Adaptyst config file, CMake sets it to ```/etc/adaptyst.conf``` by default.
+* ```ADAPTYST_SCRIPT_PATH```: the path to the directory with Adaptyst "perf" Python scripts, CMake sets it to ```/opt/adaptyst``` by default.
 
 ### Adaptyst config file
 In the current version, there is only one field in the Adaptyst config file:

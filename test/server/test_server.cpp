@@ -31,8 +31,8 @@ TEST(ServerTest, ZeroMaxConnections) {
     int created_connections = 0;
     int created_file_acceptors = 0;
     int created_clients = 0;
-    aperf::Connection *last_connection = nullptr;
-    aperf::Acceptor *last_file_acceptor = nullptr;
+    adaptyst::Connection *last_connection = nullptr;
+    adaptyst::Acceptor *last_file_acceptor = nullptr;
 
     test::MockAcceptor::Factory factory([=](test::MockAcceptor &acceptor) {
       EXPECT_CALL(acceptor, real_accept(buf_size)).Times(1);
@@ -44,9 +44,9 @@ TEST(ServerTest, ZeroMaxConnections) {
       EXPECT_CALL(connection, close).Times(1);
     }, false);
 
-    std::unique_ptr<aperf::Acceptor> acceptor = factory.make_acceptor(UNLIMITED_ACCEPTED);
+    std::unique_ptr<adaptyst::Acceptor> acceptor = factory.make_acceptor(UNLIMITED_ACCEPTED);
 
-    std::unique_ptr<aperf::Client::Factory> client_factory =
+    std::unique_ptr<adaptyst::Client::Factory> client_factory =
       std::make_unique<test::MockClient::Factory>([&](test::MockClient &client) {
         created_clients++;
         EXPECT_CALL(client, construct(last_connection,
@@ -58,7 +58,7 @@ TEST(ServerTest, ZeroMaxConnections) {
         });
       }, true);
 
-    std::unique_ptr<aperf::Acceptor::Factory> file_acceptor_factory =
+    std::unique_ptr<adaptyst::Acceptor::Factory> file_acceptor_factory =
       std::make_unique<test::MockAcceptor::Factory>([&](test::MockAcceptor &a) {
         created_file_acceptors++;
         last_file_acceptor = &a;
@@ -69,7 +69,7 @@ TEST(ServerTest, ZeroMaxConnections) {
     // A separate scope is needed for ensuring the correct order
     // of destructor calls (gmock will seg fault otherwise).
     {
-      aperf::Server server(acceptor, 0, buf_size, file_timeout_speed);
+      adaptyst::Server server(acceptor, 0, buf_size, file_timeout_speed);
       auto async_future = std::async([&]() {
         server.run(client_factory, file_acceptor_factory);
       });
@@ -92,8 +92,8 @@ TEST(ServerTest, TwoMaxConnections) {
     int created_connections = 0;
     int created_file_acceptors = 0;
     int created_clients = 0;
-    aperf::Connection *last_connection = nullptr;
-    aperf::Acceptor *last_file_acceptor = nullptr;
+    adaptyst::Connection *last_connection = nullptr;
+    adaptyst::Acceptor *last_file_acceptor = nullptr;
 
     test::MockAcceptor::Factory factory([&](test::MockAcceptor &acceptor) {
         EXPECT_CALL(acceptor, real_accept(buf_size)).Times(AtLeast(5));
@@ -109,15 +109,15 @@ TEST(ServerTest, TwoMaxConnections) {
         EXPECT_CALL(connection, close).Times(1);
       }, false);
 
-    std::unique_ptr<aperf::Acceptor> acceptor = factory.make_acceptor(UNLIMITED_ACCEPTED);
+    std::unique_ptr<adaptyst::Acceptor> acceptor = factory.make_acceptor(UNLIMITED_ACCEPTED);
     fs::path current_path = fs::current_path();
 
     // A separate scope is needed for ensuring the correct order
     // of destructor calls (gmock will seg fault otherwise).
     {
-      aperf::Server server(acceptor, 2, buf_size, file_timeout_speed);
+      adaptyst::Server server(acceptor, 2, buf_size, file_timeout_speed);
 
-      std::unique_ptr<aperf::Client::Factory> client_factory =
+      std::unique_ptr<adaptyst::Client::Factory> client_factory =
         std::make_unique<test::MockClient::Factory>([&](test::MockClient &client) {
           created_clients++;
 
@@ -135,7 +135,7 @@ TEST(ServerTest, TwoMaxConnections) {
           }
         }, true);
 
-      std::unique_ptr<aperf::Acceptor::Factory> file_acceptor_factory =
+      std::unique_ptr<adaptyst::Acceptor::Factory> file_acceptor_factory =
         std::make_unique<test::MockAcceptor::Factory>([&](test::MockAcceptor &a) {
           created_file_acceptors++;
           last_file_acceptor = &a;
