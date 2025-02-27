@@ -182,7 +182,7 @@ adaptyst -a <IP address>:<port> -- <command to be profiled>
 When Adaptyst finishes profiling, all results will be stored on the machine running ```adaptyst-server``` (**not the machine with the profiled program**).
 
 ## Documentation for contributors (Doxygen)
-If you want to contribute to Adaptyst or dive deeply into how it works, please check out the Doxygen documentation [here](https://adaptyst.github.io/contributors).
+If you want to contribute to Adaptyst or dive deeply into how it works, please check out the Doxygen documentation [here](https://adaptyst.github.io/adaptiveperf.github.io/contributors) (the new documentation featuring the Adaptyst name will be available soon).
 
 You can also render it yourself by running ```doxygen Doxyfile``` inside the ```docs``` directory (you need to install Doxygen first).
 
