@@ -41,9 +41,9 @@ namespace adaptyst {
      @param mask A CPU mask string, where the i-th character
                  defines the purpose of the i-th core as follows:
                  ' ' means "not used",
-                 'p' means "used for post-processing and profilers",
+                 'p' means "used for processing and profilers",
                  'c' means "used for the profiled command", and
-                 'b' means "used for both the profiled command and post-processing + profilers".
+                 'b' means "used for both the profiled command and processing + profilers".
   */
   CPUConfig::CPUConfig(std::string mask) {
     this->valid = false;
@@ -174,11 +174,11 @@ namespace adaptyst {
      appropriate CPUConfig object, taking into account user considerations.
 
      @param post_processing_threads A number of cores that should be used
-                                    for post-processing and profiling. This
+                                    for processing and profiling. This
                                     should not be larger than the number of
                                     available cores minus 3. 0 marks all
                                     cores as available for all activities.
-     @param external_server         Indicates if post-processing is delegated to
+     @param external_server         Indicates if processing is delegated to
                                     an external instance of adaptyst-server.
                                     If only 1 core is available, this must be
                                     set to true.
@@ -230,25 +230,25 @@ namespace adaptyst {
                 "processing).", true, false);
           return CPUConfig("b");
         } else {
-          print("Running profiling along with post-processing is *NOT* "
+          print("Running profiling along with processing is *NOT* "
                 "recommended on a machine with only one logical core! "
                 "You are very likely to get inconsistent results due "
                 "to profiling threads interfering with the profiled "
                 "program.", true, true);
-          print("Please delegate post-processing to another machine by "
+          print("Please delegate processing to another machine by "
                 "using the -a flag. If you want to proceed anyway, "
                 "run Adaptyst with -p 0.", true, true);
           return CPUConfig("");
         }
 
       case 2:
-        print("2 logical cores detected, running post-processing and "
+        print("2 logical cores detected, running processing and "
               "profilers on core #0 and the command on core #1.", true,
               false);
         return CPUConfig("pc");
 
       case 3:
-        print("3 logical cores detected, running post-processing and "
+        print("3 logical cores detected, running processing and "
               "profilers on cores #0 and #1 and the command on core #2.",
               true, false);
         return CPUConfig("ppc");
@@ -1094,7 +1094,7 @@ namespace adaptyst {
     auto overall_end_time =
       ch::duration_cast<ch::milliseconds>(ch::system_clock::now().time_since_epoch()).count();
 
-    print("Command execution and post-processing done in ~" +
+    print("Command execution and processing done in ~" +
           std::to_string(overall_end_time - start_time) + " ms!", false, false);
 
     return 0;

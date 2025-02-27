@@ -60,7 +60,7 @@ namespace adaptyst {
 
     unsigned int buffer = 1;
     app.add_option("-B,--buffer", buffer, "Buffer up to this number of "
-                   "events before sending data for post-processing "
+                   "events before sending data for processing "
                    "(1 effectively disables buffering) (default: 1)")
       ->check(OnlyMinRange(1))
       ->option_text("UINT>0");
@@ -76,7 +76,7 @@ namespace adaptyst {
     unsigned int off_cpu_buffer = 0;
     app.add_option("-b,--off-cpu-buffer", off_cpu_buffer, "Buffer up to "
                    "this number of off-CPU events before sending data "
-                   "for post-processing (0 leaves the default "
+                   "for processing (0 leaves the default "
                    "adaptive buffering, 1 effectively disables buffering) "
                    "(default: 0)")
       ->check(OnlyMinRange(0))
@@ -91,16 +91,16 @@ namespace adaptyst {
 
     app.add_option("-p,--post-process", post_process, "Number of threads "
                    "isolated from profiled command to use for profilers "
-                   "and post-processing (must not be greater than " +
+                   "and processing (must not be greater than " +
                    std::to_string(max_allowed) + "). Use 0 to not "
-                   "isolate profiler and post-processing threads "
+                   "isolate profiler and processing threads "
                    "from profiled command threads (NOT RECOMMENDED). "
                    "(default: 1)")
       ->check(CLI::Range(0, max_allowed))
       ->option_text("UINT");
 
     std::string address = "";
-    app.add_option("-a,--address", address, "Delegate post-processing to "
+    app.add_option("-a,--address", address, "Delegate processing to "
                    "another machine running adaptyst-server. All results "
                    "will be stored on that machine.")
       ->check([](const std::string &arg) {

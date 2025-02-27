@@ -21,7 +21,7 @@ set(ADAPTYST_CONFIG_PATH "/etc/adaptyst.conf" CACHE STRING "Path where Adaptyst 
 
 if(SERVER_ONLY)
   project(adaptyst-server
-    DESCRIPTION "Post-processing server for Adaptyst"
+    DESCRIPTION "Processing server for Adaptyst"
     LANGUAGES CXX)
 else()
   project(adaptyst

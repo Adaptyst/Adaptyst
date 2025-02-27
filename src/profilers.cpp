@@ -36,11 +36,11 @@ namespace adaptyst {
                                   0 disables off-CPU profiling.
      @param buffer_events         A number of on-CPU events that
                                   should be buffered before sending
-                                  them for post-processing. 1
+                                  them for processing. 1
                                   effectively disables buffering.
      @param buffer_off_cpu_events A number of off-CPU events that
                                   should be buffered before sending
-                                  them for post-processing. 0 leaves
+                                  them for processing. 0 leaves
                                   the default adaptive buffering, 1
                                   effectively disables buffering.
   */
@@ -65,7 +65,7 @@ namespace adaptyst {
                           "do a sample on every X occurrences of the
                           event".
      @param buffer_events A number of events that should be buffered
-                          before sending them for post-processing. 1
+                          before sending them for processing. 1
                           effectively disables buffering.
   */
   PerfEvent::PerfEvent(std::string name,

@@ -65,7 +65,7 @@ namespace adaptyst {
      A class describing the configuration of CPU cores for profiling.
 
      Specifically, CPUConfig describes what cores should be used for
-     post-processing + profiling, what cores should be used for running
+     processing + profiling, what cores should be used for running
      the command, what cores should be used for both, and what cores should
      not be used at all.
   */
