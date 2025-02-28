@@ -7,7 +7,7 @@ From: {{ registry }}/adaptyst/gentoo-fp:latest
 %post
     cd adaptyst
     ./build.sh
-    USE="-extra" emerge sys-devel/clang
+    USE="-extra" emerge llvm-core/clang
     echo | PATH=$PATH:$(dirname /usr/lib/llvm/*/bin/clang) ./install.sh
-    emerge --deselect sys-devel/clang sys-devel/llvm && emerge --depclean
+    emerge --deselect llvm-core/clang llvm-core/llvm && emerge --depclean
     cd .. && rm -rf adaptyst
