@@ -21,7 +21,7 @@ doxygen-test:
     - cd $CI_PROJECT_DIR/docs
     - doxygen Doxyfile
 
-doxygen-deploy:
+pages:
   image:
     name: registry.cern.ch/docker.io/ubuntu:latest
   stage: doxygen
@@ -37,7 +37,9 @@ doxygen-deploy:
     - doxygen Doxyfile
     - cd $OLD_DIR
     - mv $CI_PROJECT_DIR/docs/html public
-  pages: true
+  artifacts:
+    paths:
+      - public
 
 # Based on https://gitlab.cern.ch/gitlabci-examples/build_docker_image/-/blob/master/.gitlab-ci.yml
 make-docker-image:
