@@ -5,6 +5,39 @@ stages:
   - vm-deploy
   - deploy
   - container-image-build
+  - doxygen
+
+doxygen-test:
+  image:
+    name: registry.cern.ch/docker.io/ubuntu:latest
+  stage: doxygen
+  needs: []
+  rules:
+    - if: $CI_COMMIT_BRANCH != "main"
+  before_script:
+    - apt-get update
+    - apt-get install -y doxygen
+  script:
+    - cd $CI_PROJECT_DIR/docs
+    - doxygen Doxyfile
+
+doxygen-deploy:
+  image:
+    name: registry.cern.ch/docker.io/ubuntu:latest
+  stage: doxygen
+  needs: []
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  before_script:
+    - apt-get update
+    - apt-get install -y doxygen
+  script:
+    - OLD_DIR=$(pwd)
+    - cd $CI_PROJECT_DIR/docs
+    - doxygen Doxyfile
+    - cd $OLD_DIR
+    - mv $CI_PROJECT_DIR/docs/html public
+  pages: true
 
 # Based on https://gitlab.cern.ch/gitlabci-examples/build_docker_image/-/blob/master/.gitlab-ci.yml
 make-docker-image:
