@@ -42,7 +42,7 @@ pages:
       - public
 
 # Based on https://gitlab.cern.ch/gitlabci-examples/build_docker_image/-/blob/master/.gitlab-ci.yml
-make-docker-image:
+make-gentoo-docker-image:
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
@@ -60,6 +60,28 @@ make-docker-image:
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_DEPLOY_USER\",\"password\":\"$CI_DEPLOY_PASSWORD\"}}}" > /kaniko/.docker/config.json
     # Build and push the image from the Dockerfile at the root of the project.
     - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination $IMAGE_DESTINATION --destination $IMAGE_DESTINATION_NAMED --build-arg "JOBS=12"
+    # Print the full registry path of the pushed image
+    - echo "Image pushed successfully to ${IMAGE_DESTINATION} and ${IMAGE_DESTINATION_NAMED}"
+
+# Based on https://gitlab.cern.ch/gitlabci-examples/build_docker_image/-/blob/master/.gitlab-ci.yml
+make-alma9-docker-image:
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  stage: container-image-build
+  needs: []
+  script:
+    - |
+      if [[ $CI_COMMIT_BRANCH == "main" ]]; then
+        export IMAGE_DESTINATION_NAMED=$CI_REGISTRY/adaptyst/adaptyst:alma9-latest
+      else
+        export IMAGE_DESTINATION_NAMED=$CI_REGISTRY/adaptyst/adaptyst:alma9-branch-$CI_COMMIT_BRANCH
+      fi
+      export IMAGE_DESTINATION=$CI_REGISTRY/adaptyst/adaptyst:alma9-commit-$CI_COMMIT_SHORT_SHA
+    # Prepare Kaniko configuration file
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_DEPLOY_USER\",\"password\":\"$CI_DEPLOY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+    # Build and push the image from the Dockerfile at the root of the project.
+    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-alma9 --destination $IMAGE_DESTINATION --destination $IMAGE_DESTINATION_NAMED
     # Print the full registry path of the pushed image
     - echo "Image pushed successfully to ${IMAGE_DESTINATION} and ${IMAGE_DESTINATION_NAMED}"
 
