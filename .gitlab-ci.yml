@@ -42,7 +42,7 @@ pages:
       - public
 
 # Based on https://gitlab.cern.ch/gitlabci-examples/build_docker_image/-/blob/master/.gitlab-ci.yml
-make-docker-image:
+make-gentoo-docker-image:
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
@@ -63,7 +63,29 @@ make-docker-image:
     # Print the full registry path of the pushed image
     - echo "Image pushed successfully to ${IMAGE_DESTINATION} and ${IMAGE_DESTINATION_NAMED}"
 
-make-apptainer-image:
+# Based on https://gitlab.cern.ch/gitlabci-examples/build_docker_image/-/blob/master/.gitlab-ci.yml
+make-alma9-docker-image:
+  image:
+    name: gcr.io/kaniko-project/executor:debug
+    entrypoint: [""]
+  stage: container-image-build
+  needs: []
+  script:
+    - |
+      if [[ $CI_COMMIT_BRANCH == "main" ]]; then
+        export IMAGE_DESTINATION_NAMED=$CI_REGISTRY/adaptyst/adaptyst:alma9-latest
+      else
+        export IMAGE_DESTINATION_NAMED=$CI_REGISTRY/adaptyst/adaptyst:alma9-branch-$CI_COMMIT_BRANCH
+      fi
+      export IMAGE_DESTINATION=$CI_REGISTRY/adaptyst/adaptyst:alma9-commit-$CI_COMMIT_SHORT_SHA
+    # Prepare Kaniko configuration file
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_DEPLOY_USER\",\"password\":\"$CI_DEPLOY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+    # Build and push the image from the Dockerfile at the root of the project.
+    - /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-alma9 --destination $IMAGE_DESTINATION --destination $IMAGE_DESTINATION_NAMED
+    # Print the full registry path of the pushed image
+    - echo "Image pushed successfully to ${IMAGE_DESTINATION} and ${IMAGE_DESTINATION_NAMED}"
+
+make-apptainer-images:
   tags:
     - gentoo
   stage: container-image-build
@@ -73,16 +95,21 @@ make-apptainer-image:
     - echo $CI_DEPLOY_PASSWORD | sudo apptainer registry login --username $CI_DEPLOY_USER --password-stdin docker://$CI_REGISTRY
   script:
     - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" --build-arg registry="$CI_REGISTRY" adaptyst.sif $CI_PROJECT_DIR/apptainer.def
+    - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" --build-arg registry="$CI_REGISTRY" adaptyst-alma9.sif $CI_PROJECT_DIR/apptainer-alma9.def
     - |
       if [[ $CI_COMMIT_BRANCH == "main" ]]; then
         xrdfs root://eosuser.cern.ch mv $WEB_STORAGE/apptainer/adaptyst-latest.sif $WEB_STORAGE/apptainer/backup-adaptyst-latest.sif || true
+        xrdfs root://eosuser.cern.ch mv $WEB_STORAGE/apptainer/adaptyst-alma9-latest.sif $WEB_STORAGE/apptainer/backup-adaptyst-alma9-latest.sif || true
         xrdcp -C auto --rm-bad-cksum -t 5 adaptyst.sif root://eosuser.cern.ch/$WEB_STORAGE/apptainer/adaptyst-latest.sif
+        xrdcp -C auto --rm-bad-cksum -t 5 adaptyst-alma9.sif root://eosuser.cern.ch/$WEB_STORAGE/apptainer/adaptyst-alma9-latest.sif
       else
         xrdfs root://eosuser.cern.ch mv $WEB_STORAGE/apptainer/adaptyst-$CI_COMMIT_BRANCH.sif $WEB_STORAGE/apptainer/backup-adaptyst-$CI_COMMIT_BRANCH.sif || true
+        xrdfs root://eosuser.cern.ch mv $WEB_STORAGE/apptainer/adaptyst-alma9-$CI_COMMIT_BRANCH.sif $WEB_STORAGE/apptainer/backup-adaptyst-alma9-$CI_COMMIT_BRANCH.sif || true
         xrdcp -C auto --rm-bad-cksum -t 5 adaptyst.sif root://eosuser.cern.ch/$WEB_STORAGE/apptainer/adaptyst-$CI_COMMIT_BRANCH.sif
+        xrdcp -C auto --rm-bad-cksum -t 5 adaptyst-alma9.sif root://eosuser.cern.ch/$WEB_STORAGE/apptainer/adaptyst-alma9-$CI_COMMIT_BRANCH.sif
       fi
   after_script:
-    - rm -f adaptyst.sif
+    - rm -f adaptyst.sif adaptyst-alma9.sif
     - kdestroy -A
     - sudo apptainer registry logout docker://$CI_REGISTRY
 
