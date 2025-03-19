@@ -1,0 +1,13 @@
+Bootstrap: docker
+From: {{ registry }}/adaptyst/alma9-fp:latest
+
+%files
+    {{ project_dir }} adaptyst
+
+%post
+    dnf install -y git cmake numactl-devel cli11-devel json-devel poco-devel boost-devel libarchive-devel clang libtraceevent-devel flex bison elfutils-libelf-devel ninja-build
+    cd adaptyst
+    ./build.sh -G Ninja
+    echo | ./install.sh /usr
+    dnf remove -y clang ninja-build
+    cd .. && rm -rf adaptyst
