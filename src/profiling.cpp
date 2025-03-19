@@ -470,18 +470,6 @@ namespace adaptyst {
     auto profiler_and_wrapper_handler =
       [&](int code, long start_time, long end_time) {
         bool error = false;
-        for (int i = 0; i < profilers.size(); i++) {
-          int code = profilers[i]->wait();
-
-          if (code != 0) {
-            error = true;
-            break;
-          }
-        }
-
-        if (error) {
-          print("One or more profilers have encountered an error.", true, true);
-        }
 
         if (code == 0) {
           if (start_time != -1 && end_time != -1) {
@@ -635,11 +623,16 @@ namespace adaptyst {
     std::unordered_set<fs::path> perf_map_paths;
     std::unordered_map<std::string, std::unordered_set<std::string> > dso_offsets;
     bool perf_maps_expected = false;
+    bool profiler_error = false;
 
     for (int i = 0; i < profilers.size(); i++) {
       std::unique_ptr<Connection> &generic_connection = profilers[i]->get_connection();
 
       if (generic_connection.get() == nullptr) {
+        if (profilers[i]->wait() != 0) {
+          profiler_error = true;
+        }
+
         continue;
       }
 
@@ -740,6 +733,15 @@ namespace adaptyst {
                 "is not valid JSON, ignoring.", true, false);
         }
       }
+
+      if (profilers[i]->wait() != 0) {
+        profiler_error = true;
+      }
+    }
+
+    if (profiler_error) {
+      print("One or more profilers have encountered an error! Exiting.", true, true);
+      return 2;
     }
 
     nlohmann::json sources_json = nlohmann::json::object();
