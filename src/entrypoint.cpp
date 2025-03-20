@@ -30,7 +30,7 @@ namespace adaptyst {
   public:
     OnlyMinRange(int min) {
       func_ = [=](const std::string &arg) {
-        if (!std::regex_match(arg, std::regex("^[0-9]+$")) ||
+        if (!std::regex_match(arg, std::regex("^-?[0-9]+$")) ||
             std::stoi(arg) < min) {
           return "The value must be a number equal to or greater than " +
             std::to_string(min);
