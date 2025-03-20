@@ -12,35 +12,6 @@
 #endif
 
 namespace adaptyst {
-  std::string SysKernelDebugReq::get_name() {
-    return "Presence of mounted /sys/kernel/debug";
-  }
-
-  bool SysKernelDebugReq::check_internal() {
-    std::ifstream mounts("/proc/mounts");
-
-    if (!mounts) {
-      print("Could not open /proc/mounts for checking "
-            "if /sys/kernel/debug is mounted!", true, true);
-      return false;
-    }
-
-    std::string element;
-
-    while (mounts) {
-      mounts >> element;
-
-      if (element == "/sys/kernel/debug") {
-        return true;
-      }
-    }
-
-    print("/sys/kernel/debug is not mounted, please mount it first by "
-          "running \"mount -t debugfs none /sys/kernel/debug\".",
-          true, true);
-    return false;
-  }
-
   /**
      Constructs a PerfEventKernelSettingsReq object.
 
