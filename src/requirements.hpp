@@ -11,8 +11,7 @@ namespace adaptyst {
      A class describing the requirement of the correct
      "perf"-specific kernel settings.
 
-     These settings are kernel.perf_event_max_stack and
-     kernel.perf_event_paranoid.
+     At the moment, this is only kernel.perf_event_max_stack.
   */
   class PerfEventKernelSettingsReq : public Requirement {
   private:
