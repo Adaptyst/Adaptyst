@@ -8,18 +8,6 @@
 
 namespace adaptyst {
   /**
-     A class describing the requirement of /sys/kernel/debug
-     being mounted.
-  */
-  class SysKernelDebugReq : public Requirement {
-  protected:
-    bool check_internal();
-
-  public:
-    std::string get_name();
-  };
-
-  /**
      A class describing the requirement of the correct
      "perf"-specific kernel settings.
 

@@ -95,7 +95,6 @@ namespace adaptyst {
     this->name = name;
     this->max_stack = 1024;
 
-    this->requirements.push_back(std::make_unique<SysKernelDebugReq>());
     this->requirements.push_back(std::make_unique<PerfEventKernelSettingsReq>(this->max_stack));
     this->requirements.push_back(std::make_unique<NUMAMitigationReq>());
   }
