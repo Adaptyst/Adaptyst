@@ -25,27 +25,6 @@ namespace adaptyst {
   }
 
   bool PerfEventKernelSettingsReq::check_internal() {
-    // kernel.perf_event_paranoid
-    std::ifstream paranoid("/proc/sys/kernel/perf_event_paranoid");
-
-    if (!paranoid) {
-      print("Could not check the value of kernel.perf_event_paranoid!",
-            true, true);
-      return false;
-    }
-
-    int paranoid_value;
-    paranoid >> paranoid_value;
-
-    paranoid.close();
-
-    if (paranoid_value != -1) {
-      print("kernel.perf_event_paranoid is not -1. Please run "
-            "\"sysctl kernel.perf_event_paranoid=-1\" before profiling.",
-            true, true);
-      return false;
-    }
-
     // kernel.perf_event_max_stack
     std::ifstream max_stack("/proc/sys/kernel/perf_event_max_stack");
 
