@@ -121,7 +121,6 @@ make-apptainer-images:
   dependencies: []
   before_script:
     - echo $KERBEROS_PASSWORD | kinit ${KERBEROS_USER}@CERN.CH
-    - echo $CI_DEPLOY_PASSWORD | sudo apptainer registry login --username $CI_DEPLOY_USER --password-stdin docker://$CI_REGISTRY
   script:
     - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" --build-arg registry="$CI_REGISTRY" adaptyst.sif $CI_PROJECT_DIR/apptainer.def
     - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" --build-arg registry="$CI_REGISTRY" adaptyst-alma9.sif $CI_PROJECT_DIR/apptainer-alma9.def
@@ -140,7 +139,6 @@ make-apptainer-images:
   after_script:
     - rm -f adaptyst.sif adaptyst-alma9.sif
     - kdestroy -A
-    - sudo apptainer registry logout docker://$CI_REGISTRY
 
 deploy-to-syclops-gentoo-profiling:
   tags:
