@@ -12,12 +12,14 @@ compile-alma9:
   script:
     - ./build.sh -G Ninja
     - echo | ./install.sh /usr
+    - mkdir -p install/etc install/opt install/usr/bin install/usr/lib
+    - cp /etc/adaptyst.conf install/etc/
+    - cp -r /opt/adaptyst install/opt/
+    - cp /usr/bin/adaptyst* install/usr/bin/
+    - cp /usr/lib/libadaptystserv.so install/usr/lib/
   artifacts:
     paths:
-      - /etc/adaptyst.conf
-      - /opt/adaptyst
-      - /usr/bin/adaptyst*
-      - /usr/lib/libadaptystserv.so
+      - install
     expire_in: 6 h
 
 doxygen-test:
