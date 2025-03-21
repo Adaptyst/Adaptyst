@@ -54,21 +54,18 @@ doxygen-test:
   script:
     - cd docs
     - doxygen Doxyfile
+  artifacts:
+    paths:
+      - docs/html
+    expire_in: 6 h
 
 pages:
-  image:
-    name: registry.cern.ch/docker.io/ubuntu:latest
   stage: deploy
-  dependencies: []
+  dependencies: ["doxygen-test"]
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-  before_script:
-    - apt-get update
-    - apt-get install -y doxygen
   script:
-    - cd docs
-    - doxygen Doxyfile
-    - mv html ../public
+    - mv docs/html public
   artifacts:
     paths:
       - public
