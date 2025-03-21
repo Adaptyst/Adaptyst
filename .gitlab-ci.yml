@@ -3,6 +3,25 @@ stages:
   - test
   - deploy
 
+compile-gentoo:
+  image:
+    name: gitlab-registry.cern.ch/adaptyst/gentoo-fp:latest
+  stage: build
+  before_script:
+    - emerge -g --quiet-build=y llvm-core/clang
+  script:
+    - ./build.sh -G Ninja
+    - echo | PATH=$PATH:$(dirname /usr/lib/llvm/*/bin/clang) ./install.sh
+    - mkdir -p install/etc install/opt install/usr/local/bin install/usr/local/lib
+    - cp /etc/adaptyst.conf install/etc/
+    - cp -r /opt/adaptyst install/opt/
+    - cp /usr/local/bin/adaptyst* install/usr/local/bin/
+    - cp /usr/local/lib/libadaptystserv.so install/usr/local/lib/
+  artifacts:
+    paths:
+      - install
+    expire_in: 6 h
+
 compile-alma9:
   image:
     name: gitlab-registry.cern.ch/adaptyst/alma9-fp:latest
