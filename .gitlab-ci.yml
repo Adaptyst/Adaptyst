@@ -150,7 +150,7 @@ deploy-to-syclops-gentoo-profiling:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   script:
-    - ./build.sh
+    - ./build.sh -G Ninja
     - echo | sudo ./install.sh
     - sudo setcap cap_perfmon,cap_bpf,cap_ipc_lock,cap_syslog+ep /opt/adaptyst/perf/bin/perf
   after_script:
