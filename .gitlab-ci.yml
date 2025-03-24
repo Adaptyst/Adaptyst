@@ -7,6 +7,9 @@ compile-gentoo:
   image:
     name: gitlab-registry.cern.ch/adaptyst/gentoo-fp:latest
   stage: build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "external_pull_request_event"
+      when: never
   before_script:
     - emerge -g --quiet-build=y llvm-core/clang
   script:
@@ -26,6 +29,9 @@ compile-alma9:
   image:
     name: gitlab-registry.cern.ch/adaptyst/alma9-fp:latest
   stage: build
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "external_pull_request_event"
+      when: never
   before_script:
     - dnf install -y git cmake numactl-devel cli11-devel json-devel poco-devel boost-devel libarchive-devel clang libtraceevent-devel flex bison elfutils-libelf-devel ninja-build
   script:
@@ -45,6 +51,9 @@ doxygen-test:
   image:
     name: registry.cern.ch/docker.io/ubuntu:latest
   stage: test
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "external_pull_request_event"
+      when: never
   dependencies: []
   before_script:
     - apt-get update
@@ -63,6 +72,8 @@ pages:
     - doxygen-test
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "external_pull_request_event"
+      when: never
   script:
     - mv docs/html public
   artifacts:
@@ -75,6 +86,9 @@ make-gentoo-docker-image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   stage: deploy
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "external_pull_request_event"
+      when: never
   dependencies: []
   script:
     - |
@@ -97,6 +111,9 @@ make-alma9-docker-image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
   stage: deploy
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "external_pull_request_event"
+      when: never
   dependencies: []
   script:
     - |
@@ -117,6 +134,9 @@ make-apptainer-images:
   tags:
     - gentoo
   stage: deploy
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "external_pull_request_event"
+      when: never
   dependencies: []
   before_script:
     - echo $KERBEROS_PASSWORD | kinit ${KERBEROS_USER}@CERN.CH
@@ -146,6 +166,8 @@ deploy-to-syclops-gentoo-profiling:
   dependencies: []
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "external_pull_request_event"
+      when: never
   script:
     - ./build.sh -G Ninja
     - echo | sudo ./install.sh
