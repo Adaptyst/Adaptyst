@@ -59,7 +59,8 @@ doxygen-test:
 
 pages:
   stage: deploy
-  dependencies: ["doxygen-test"]
+  dependencies:
+    - doxygen-test
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   script:
