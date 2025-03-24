@@ -1,42 +1,71 @@
 stages:
-  - start-vm
-  - vm-setup
+  - build
   - test
-  - vm-deploy
   - deploy
-  - container-image-build
-  - doxygen
+
+compile-gentoo:
+  image:
+    name: gitlab-registry.cern.ch/adaptyst/gentoo-fp:latest
+  stage: build
+  before_script:
+    - emerge -g --quiet-build=y llvm-core/clang
+  script:
+    - ./build.sh -G Ninja
+    - echo | PATH=$PATH:$(dirname /usr/lib/llvm/*/bin/clang) ./install.sh
+    - mkdir -p install/etc install/opt install/usr/local/bin install/usr/local/lib
+    - cp /etc/adaptyst.conf install/etc/
+    - cp -r /opt/adaptyst install/opt/
+    - cp /usr/local/bin/adaptyst* install/usr/local/bin/
+    - cp /usr/local/lib/libadaptystserv.so install/usr/local/lib/
+  artifacts:
+    paths:
+      - install
+    expire_in: 6 h
+
+compile-alma9:
+  image:
+    name: gitlab-registry.cern.ch/adaptyst/alma9-fp:latest
+  stage: build
+  before_script:
+    - dnf install -y git cmake numactl-devel cli11-devel json-devel poco-devel boost-devel libarchive-devel clang libtraceevent-devel flex bison elfutils-libelf-devel ninja-build
+  script:
+    - ./build.sh -G Ninja
+    - echo | ./install.sh /usr
+    - mkdir -p install/etc install/opt install/usr/bin install/usr/lib
+    - cp /etc/adaptyst.conf install/etc/
+    - cp -r /opt/adaptyst install/opt/
+    - cp /usr/bin/adaptyst* install/usr/bin/
+    - cp /usr/lib/libadaptystserv.so install/usr/lib/
+  artifacts:
+    paths:
+      - install
+    expire_in: 6 h
 
 doxygen-test:
   image:
     name: registry.cern.ch/docker.io/ubuntu:latest
-  stage: doxygen
-  needs: []
+  stage: test
+  dependencies: []
   rules:
     - if: $CI_COMMIT_BRANCH != "main"
   before_script:
     - apt-get update
     - apt-get install -y doxygen
   script:
-    - cd $CI_PROJECT_DIR/docs
+    - cd docs
     - doxygen Doxyfile
+  artifacts:
+    paths:
+      - docs/html
+    expire_in: 6 h
 
 pages:
-  image:
-    name: registry.cern.ch/docker.io/ubuntu:latest
-  stage: doxygen
-  needs: []
+  stage: deploy
+  dependencies: ["doxygen-test"]
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
-  before_script:
-    - apt-get update
-    - apt-get install -y doxygen
   script:
-    - OLD_DIR=$(pwd)
-    - cd $CI_PROJECT_DIR/docs
-    - doxygen Doxyfile
-    - cd $OLD_DIR
-    - mv $CI_PROJECT_DIR/docs/html public
+    - mv docs/html public
   artifacts:
     paths:
       - public
@@ -46,8 +75,8 @@ make-gentoo-docker-image:
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
-  stage: container-image-build
-  needs: []
+  stage: deploy
+  dependencies: []
   script:
     - |
       if [[ $CI_COMMIT_BRANCH == "main" ]]; then
@@ -68,8 +97,8 @@ make-alma9-docker-image:
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
-  stage: container-image-build
-  needs: []
+  stage: deploy
+  dependencies: []
   script:
     - |
       if [[ $CI_COMMIT_BRANCH == "main" ]]; then
@@ -88,11 +117,10 @@ make-alma9-docker-image:
 make-apptainer-images:
   tags:
     - gentoo
-  stage: container-image-build
-  needs: []
+  stage: deploy
+  dependencies: []
   before_script:
     - echo $KERBEROS_PASSWORD | kinit ${KERBEROS_USER}@CERN.CH
-    - echo $CI_DEPLOY_PASSWORD | sudo apptainer registry login --username $CI_DEPLOY_USER --password-stdin docker://$CI_REGISTRY
   script:
     - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" --build-arg registry="$CI_REGISTRY" adaptyst.sif $CI_PROJECT_DIR/apptainer.def
     - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" --build-arg registry="$CI_REGISTRY" adaptyst-alma9.sif $CI_PROJECT_DIR/apptainer-alma9.def
@@ -111,94 +139,17 @@ make-apptainer-images:
   after_script:
     - rm -f adaptyst.sif adaptyst-alma9.sif
     - kdestroy -A
-    - sudo apptainer registry logout docker://$CI_REGISTRY
-
-start-vm:
-  tags:
-    - gentoo-vm-host
-  stage: start-vm
-  script:
-    - |
-      if ! sudo virsh start gentoo; then
-        sudo virsh shutdown gentoo
-        sudo virsh event gentoo --event lifecycle
-        sleep 1
-        sudo virsh start gentoo
-      fi
-
-vm-setup:
-  tags:
-    - gentoo-vm
-  stage: vm-setup
-  script:
-    - cd $CI_PROJECT_DIR
-    - bash ci/vm_setup.sh
-
-vm-test:
-  tags:
-    - gentoo-vm
-  stage: test
-  script:
-    - cd $CI_PROJECT_DIR
-    - bash ci/vm_test.sh
-
-vm-deploy:
-  tags:
-    - gentoo-vm
-  variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-  stage: vm-deploy
-  script:
-    - cd $CI_PROJECT_DIR
-    - bash ci/vm_deploy.sh
-
-shutdown-vm:
-  tags:
-    - gentoo-vm-host
-  stage: deploy
-  script:
-    - |
-      if ! sudo virsh shutdown gentoo; then
-        if sudo virsh list | grep gentoo; then
-          exit 1
-        fi
-      else
-        sudo virsh event gentoo --event lifecycle
-      fi
-
-make-vm-image:
-  tags:
-    - gentoo-vm-host
-  stage: deploy
-  needs: ["shutdown-vm"]
-  before_script:
-    - echo $KERBEROS_PASSWORD | kinit ${KERBEROS_USER}@CERN.CH
-  script:
-    - TMPDIR=/data/gitlab-runner/tmp virt-sparsify --compress /data/gitlab-runner/gentoo.qcow2 $CI_PROJECT_DIR/adaptyst.qcow2
-    - guestmount -a $CI_PROJECT_DIR/adaptyst.qcow2 -m /dev/sda2 /data/gitlab-runner/mnt
-    - rm -rf /data/gitlab-runner/mnt/etc/gitlab-runner/config.toml /data/gitlab-runner/mnt/opt/gitlab-runner/* /data/gitlab-runner/mnt/home/profiling/.bash_history && echo "gentoo-adaptyst-vm" > /data/gitlab-runner/mnt/etc/hostname
-    - guestunmount /data/gitlab-runner/mnt
-    - |
-      if [[ $CI_COMMIT_BRANCH == "main" ]]; then
-        xrdfs root://eosuser.cern.ch mv $WEB_STORAGE/vm/adaptyst-latest.qcow2 $WEB_STORAGE/vm/backup-adaptyst-latest.qcow2 || true
-        xrdcp -C auto --rm-bad-cksum -t 5 $CI_PROJECT_DIR/adaptyst.qcow2 root://eosuser.cern.ch/$WEB_STORAGE/vm/adaptyst-latest.qcow2
-      else
-        xrdfs root://eosuser.cern.ch mv $WEB_STORAGE/vm/adaptyst-$CI_COMMIT_BRANCH.qcow2 $WEB_STORAGE/vm/backup-adaptyst-$CI_COMMIT_BRANCH.qcow2 || true
-        xrdcp -C auto --rm-bad-cksum -t 5 $CI_PROJECT_DIR/adaptyst.qcow2 root://eosuser.cern.ch/$WEB_STORAGE/vm/adaptyst-$CI_COMMIT_BRANCH.qcow2
-      fi
-  after_script:
-    - kdestroy -A
 
 deploy-to-syclops-gentoo-profiling:
   tags:
     - gentoo-profiling
   stage: deploy
+  dependencies: []
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   script:
-    - cd $CI_PROJECT_DIR
-    - ./build.sh
+    - ./build.sh -G Ninja
     - echo | sudo ./install.sh
-    - sudo setcap cap_perfmon,cap_bpf+ep /opt/adaptyst/perf/bin/perf
+    - sudo setcap cap_perfmon,cap_bpf,cap_ipc_lock,cap_syslog+ep /opt/adaptyst/perf/bin/perf
   after_script:
     - sudo rm -rf $CI_PROJECT_DIR/linux

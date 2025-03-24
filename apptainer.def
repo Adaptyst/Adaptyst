@@ -5,9 +5,10 @@ From: {{ registry }}/adaptyst/gentoo-fp:latest
     {{ project_dir }} adaptyst
 
 %post
+    emerge dev-build/ninja
     cd adaptyst
-    ./build.sh
-    USE="-extra" emerge llvm-core/clang
+    ./build.sh -G Ninja
+    emerge -g --quiet-build=y llvm-core/clang
     echo | PATH=$PATH:$(dirname /usr/lib/llvm/*/bin/clang) ./install.sh
-    emerge --deselect llvm-core/clang llvm-core/llvm && emerge --depclean
+    emerge --deselect llvm-core/clang dev-build/ninja && emerge --depclean
     cd .. && rm -rf adaptyst
