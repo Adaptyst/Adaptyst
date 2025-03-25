@@ -18,6 +18,7 @@ namespace adaptyst {
     std::vector<std::string> command;
     std::vector<std::pair<std::string, std::string> > env;
     bool stdout_redirect;
+    bool stdout_terminal;
     fs::path stdout_path;
     bool stderr_redirect;
     fs::path stderr_path;
@@ -51,8 +52,10 @@ namespace adaptyst {
     ~Process();
     void add_env(std::string key, std::string value);
     void set_redirect_stdout(fs::path path);
+    void set_redirect_stdout_to_terminal();
     void set_redirect_stdout(Process &process);
     void set_redirect_stderr(fs::path path);
+    int start(fs::path working_path = fs::current_path());
     int start(bool wait_for_notify,
               const CPUConfig &cpu_config,
               bool is_profiler,
