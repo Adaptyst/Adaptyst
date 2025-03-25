@@ -426,8 +426,6 @@ namespace adaptyst {
           print("An unknown error has occurred in adaptyst-server! If the issue persists, "
                 "please contact the Adaptyst developers, citing \"" +
                 std::string(e.what()) + "\".", true, true);
-          print("For investigating what has gone wrong, you can check the files created in " +
-                tmp_dir.string() + ".", false, true);
           std::exit(2);
         }
       });
@@ -464,8 +462,8 @@ namespace adaptyst {
     }
 
     print("Waiting for profilers to signal their readiness. If Adaptyst "
-          "hangs here, you may want to check the files in " +
-          tmp_dir.string() + ".", true, false);
+          "hangs here, you may want to check the files in the "
+          "temporary directory.", true, false);
 
     auto profiler_and_wrapper_handler =
       [&](int code, long start_time, long end_time) {

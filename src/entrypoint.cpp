@@ -239,41 +239,58 @@ namespace adaptyst {
       print_notice();
 
       print("Reading config file...", false, false);
-      std::ifstream config_f(ADAPTYST_CONFIG_FILE);
 
-      if (!config_f) {
-        print("Cannot open " ADAPTYST_CONFIG_FILE "!", true, true);
-        return 2;
-      }
-
+      fs::path local_config_path = fs::path(getenv("HOME")) /
+        ".adaptyst" / "adaptyst.conf";
       std::unordered_map<std::string, std::string> config;
-      int cur_line = 1;
 
-      while (config_f) {
-        std::string line;
-        std::getline(config_f, line);
+      auto read_config = [](fs::path config_path,
+                            std::unordered_map<std::string, std::string> &result) {
+        std::ifstream stream(config_path);
 
-        if (line.empty() || line[0] == '#') {
+        if (!stream) {
+          print("Cannot open or find " + config_path.string() + ", ignoring.",
+                true, false);
+          return true;
+        }
+
+        int cur_line = 1;
+
+        while (stream) {
+          std::string line;
+          std::getline(stream, line);
+
+          if (line.empty() || line[0] == '#') {
+            cur_line++;
+            continue;
+          }
+
+          std::smatch match;
+
+          if (!std::regex_match(line, match,
+                                std::regex("^(\\S+)\\s*\\=\\s*(.+)$"))) {
+            print("Syntax error in line " + std::to_string(cur_line) + " of " +
+                  config_path.string() + "!", true, true);
+            return false;
+          }
+
+          result[match[1]] = match[2];
           cur_line++;
-          continue;
         }
 
-        std::smatch match;
+        print("Successfully read " + config_path.string() + ".", true, false);
+        return true;
+      };
 
-        if (!std::regex_match(line, match,
-                              std::regex("^(\\S+)\\s*\\=\\s*(.+)$"))) {
-          print("Syntax error in line " + std::to_string(cur_line) + " of "
-                ADAPTYST_CONFIG_FILE "!", true, true);
-          return 2;
-        }
-
-        config[match[1]] = match[2];
-        cur_line++;
+      if (!read_config(ADAPTYST_CONFIG_FILE, config) ||
+          !read_config(local_config_path, config)) {
+        return 2;
       }
 
       if (config.find("perf_path") == config.end()) {
         print("You must specify the path to your patched \"perf\" installation "
-              "(perf_path) in " ADAPTYST_CONFIG_FILE "!", true, true);
+              "(perf_path) in your config file (" + local_config_path.string() +
+              " or " + ADAPTYST_CONFIG_FILE + ")!", true, true);
         return 2;
       }
 
@@ -282,17 +299,40 @@ namespace adaptyst {
 
       if (!fs::exists(perf_path)) {
         print(perf_path.string() + " does not exist!", true, true);
-        print("Hint: You may want to verify the contents of " ADAPTYST_CONFIG_FILE ".",
+        print("Hint: You may want to verify perf_path in your config file (" +
+              local_config_path.string() + " or " + ADAPTYST_CONFIG_FILE + ").",
               false, true);
         return 2;
       }
 
-      if (!fs::is_regular_file(perf_path)) {
-        print(perf_path.string() + " is not a regular file!", true, true);
-        print("Hint: You may want to verify the contents of " ADAPTYST_CONFIG_FILE ".",
+      if (!fs::is_regular_file(fs::canonical(perf_path))) {
+        print(perf_path.string() + " does not point to regular file!", true, true);
+        print("Hint: You may want to verify perf_path in your config file (" +
+              local_config_path.string() + " or " + ADAPTYST_CONFIG_FILE + ").",
               false, true);
         return 2;
       }
+
+      print("Creating temporary directory...", false, false);
+
+      pid_t current_pid = getpid();
+      fs::path tmp_dir = fs::temp_directory_path() /
+        ("adaptyst.pid." + std::to_string(current_pid));
+
+      try {
+        if (fs::exists(tmp_dir)) {
+          fs::remove_all(tmp_dir);
+        }
+
+        fs::create_directories(tmp_dir);
+      } catch (fs::filesystem_error) {
+        print("Could not create " + tmp_dir.string() + "! Exiting.",
+              true, true);
+      }
+
+      print("In case of any issues, check the files inside " +
+            tmp_dir.string() + ".",
+            true, false);
 
       print("Checking CPU specification...", false, false);
 
@@ -356,14 +396,6 @@ namespace adaptyst {
         profilers[i]->set_acceptor(acceptor, server_buffer);
       }
 
-      pid_t current_pid = getpid();
-      fs::path tmp_dir = fs::temp_directory_path() /
-        ("adaptyst.pid." + std::to_string(current_pid));
-
-      if (fs::exists(tmp_dir)) {
-        fs::remove_all(tmp_dir);
-      }
-
       std::vector<pid_t> spawned_children;
       int to_return = 0;
 
@@ -380,25 +412,18 @@ namespace adaptyst {
 
           print("Done in " + std::to_string(end_time - start_time) + " ms in total! "
                 "You can check the results directory now.", false, false);
-        } else if (code != 1) {
-          print("For investigating what has gone wrong, you can check the files created in " +
-                tmp_dir.string() + ".", false, true);
         }
 
         to_return = code;
       } catch (ConnectionException &e) {
         print("I/O error has occurred! Exiting.", false, true);
         print("Details: " + std::string(e.what()), false, true);
-        print("For investigating what has gone wrong, you can check the files created in " +
-              tmp_dir.string() + ".", false, true);
 
         to_return = 2;
       } catch (std::exception &e) {
         print("A fatal error has occurred! If the issue persits, "
               "please contact the Adaptyst developers, citing \"" +
               std::string(e.what()) + "\".", false, true);
-        print("For investigating what has gone wrong, you can check the files created in " +
-              tmp_dir.string() + ".", false, true);
 
         to_return = 2;
       }
