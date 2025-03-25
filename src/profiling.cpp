@@ -294,6 +294,7 @@ namespace adaptyst {
                              titles (e.g. "page-faults" -> "Page faults"). This dictionary will
                              be saved to event_dict.data in the "processed" directory.
      @param codes_dst        TODO
+     @param rl_result_path   TODO
   */
   int start_profiling_session(std::vector<std::unique_ptr<Profiler> > &profilers,
                               std::vector<std::string> &command_elements,
@@ -302,7 +303,8 @@ namespace adaptyst {
                               CPUConfig &cpu_config, fs::path tmp_dir,
                               std::vector<pid_t> &spawned_children,
                               std::unordered_map<std::string, std::string> &event_dict,
-                              std::string codes_dst) {
+                              std::string codes_dst,
+                              fs::path *rl_result_path) {
     print("Verifying profiler requirements...", false, false);
 
     bool requirements_fulfilled = true;
@@ -999,6 +1001,19 @@ namespace adaptyst {
         check_data_transfer(path.filename().string());
       }
 
+      if (rl_result_path != nullptr) {
+        connection->write("p roofline.csv", true);
+
+        // A separate scope is needed for the file connection to close
+        // automatically after the transfer is finished.
+        {
+          std::unique_ptr<Connection> file_connection = get_file_connection();
+          file_connection->write(*rl_result_path);
+        }
+
+        check_data_transfer("the roofline benchmarking results");
+      }
+
       for (auto &elem : fs::directory_iterator(result_out)) {
         fs::path path = elem.path();
 
@@ -1056,6 +1071,14 @@ namespace adaptyst {
       if (!sources_json.empty()) {
         std::ofstream ostream(result_processed / "sources.json");
         ostream << sources_json << std::endl;
+      }
+
+      if (rl_result_path != nullptr) {
+        if (!fs::copy_file(*rl_result_path, result_processed)) {
+          print("Could not copy the roofline benchmarking results to the profiling "
+                "session result directory! Exiting.", true, true);
+          return 2;
+        }
       }
     }
 
