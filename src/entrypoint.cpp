@@ -9,6 +9,7 @@
 #include "cmd.hpp"
 #include <boost/algorithm/string.hpp>
 #include <boost/program_options/parsers.hpp>
+#include <boost/predef.h>
 #include <regex>
 #include <sys/wait.h>
 
@@ -160,15 +161,31 @@ namespace adaptyst {
                    "can specify multiple events by specifying this option "
                    "more than once. Use quotes if you need to use spaces.")
       ->check([](const std::string &arg) {
-        if (!std::regex_match(arg, std::regex("^.+,[0-9\\.]+,.+$"))) {
+        std::smatch match;
+
+        if (!std::regex_match(arg, match, std::regex("^.+,[0-9\\.]+,(.+)$"))) {
           return "The value \"" + arg + "\" must be in form of EVENT,PERIOD,TITLE "
             "(PERIOD must be a number).";
+        }
+
+        if (std::regex_match(match[1].str(), std::regex("^CARM_.*$"))) {
+          return "The title in \"" + arg + "\" starts with a reserved keyword "
+            "CARM_, you cannot use it.";
         }
 
         return std::string();
       })
       ->option_text("EVENT,PERIOD,TITLE")
       ->take_all();
+
+#ifdef BOOST_ARCH_X86
+    unsigned int roofline_freq = 0;
+    app.add_option("-r,--roofline", roofline_freq, "Run also "
+                   "cache-aware roofline profiling with the specified sampling "
+                   "frequency per second")
+      ->check(OnlyMinRange(1))
+      ->option_text("UINT>0");
+#endif
 
     quiet = false;
     app.add_flag("-q,--quiet", quiet, "Do not print anything (if set, check "
@@ -229,41 +246,58 @@ namespace adaptyst {
       print_notice();
 
       print("Reading config file...", false, false);
-      std::ifstream config_f(ADAPTYST_CONFIG_FILE);
 
-      if (!config_f) {
-        print("Cannot open " ADAPTYST_CONFIG_FILE "!", true, true);
-        return 2;
-      }
-
+      fs::path local_config_path = fs::path(getenv("HOME")) /
+        ".adaptyst" / "adaptyst.conf";
       std::unordered_map<std::string, std::string> config;
-      int cur_line = 1;
 
-      while (config_f) {
-        std::string line;
-        std::getline(config_f, line);
+      auto read_config = [](fs::path config_path,
+                            std::unordered_map<std::string, std::string> &result) {
+        std::ifstream stream(config_path);
 
-        if (line.empty() || line[0] == '#') {
+        if (!stream) {
+          print("Cannot open or find " + config_path.string() + ", ignoring.",
+                true, false);
+          return true;
+        }
+
+        int cur_line = 1;
+
+        while (stream) {
+          std::string line;
+          std::getline(stream, line);
+
+          if (line.empty() || line[0] == '#') {
+            cur_line++;
+            continue;
+          }
+
+          std::smatch match;
+
+          if (!std::regex_match(line, match,
+                                std::regex("^(\\S+)\\s*\\=\\s*(.+)$"))) {
+            print("Syntax error in line " + std::to_string(cur_line) + " of " +
+                  config_path.string() + "!", true, true);
+            return false;
+          }
+
+          result[match[1]] = match[2];
           cur_line++;
-          continue;
         }
 
-        std::smatch match;
+        print("Successfully read " + config_path.string() + ".", true, false);
+        return true;
+      };
 
-        if (!std::regex_match(line, match,
-                              std::regex("^(\\S+)\\s*\\=\\s*(.+)$"))) {
-          print("Syntax error in line " + std::to_string(cur_line) + " of "
-                ADAPTYST_CONFIG_FILE "!", true, true);
-          return 2;
-        }
-
-        config[match[1]] = match[2];
-        cur_line++;
+      if (!read_config(ADAPTYST_CONFIG_FILE, config) ||
+          !read_config(local_config_path, config)) {
+        return 2;
       }
 
       if (config.find("perf_path") == config.end()) {
         print("You must specify the path to your patched \"perf\" installation "
-              "(perf_path) in " ADAPTYST_CONFIG_FILE "!", true, true);
+              "(perf_path) in your config file (" + local_config_path.string() +
+              " or " + ADAPTYST_CONFIG_FILE + ")!", true, true);
         return 2;
       }
 
@@ -272,17 +306,40 @@ namespace adaptyst {
 
       if (!fs::exists(perf_path)) {
         print(perf_path.string() + " does not exist!", true, true);
-        print("Hint: You may want to verify the contents of " ADAPTYST_CONFIG_FILE ".",
+        print("Hint: You may want to verify perf_path in your config file (" +
+              local_config_path.string() + " or " + ADAPTYST_CONFIG_FILE + ").",
               false, true);
         return 2;
       }
 
-      if (!fs::is_regular_file(perf_path)) {
-        print(perf_path.string() + " is not a regular file!", true, true);
-        print("Hint: You may want to verify the contents of " ADAPTYST_CONFIG_FILE ".",
+      if (!fs::is_regular_file(fs::canonical(perf_path))) {
+        print(perf_path.string() + " does not point to regular file!", true, true);
+        print("Hint: You may want to verify perf_path in your config file (" +
+              local_config_path.string() + " or " + ADAPTYST_CONFIG_FILE + ").",
               false, true);
         return 2;
       }
+
+      print("Creating temporary directory...", false, false);
+
+      pid_t current_pid = getpid();
+      fs::path tmp_dir = fs::temp_directory_path() /
+        ("adaptyst.pid." + std::to_string(current_pid));
+
+      try {
+        if (fs::exists(tmp_dir)) {
+          fs::remove_all(tmp_dir);
+        }
+
+        fs::create_directories(tmp_dir);
+      } catch (fs::filesystem_error) {
+        print("Could not create " + tmp_dir.string() + "! Exiting.",
+              true, true);
+      }
+
+      print("In case of any issues, check the files inside " +
+            tmp_dir.string() + ".",
+            true, false);
 
       print("Checking CPU specification...", false, false);
 
@@ -305,6 +362,154 @@ namespace adaptyst {
                                                  "Thread tree profiler"));
       profilers.push_back(std::make_unique<Perf>(perf_path, main, cpu_config,
                                                  "On-CPU/Off-CPU profiler"));
+
+      std::unique_ptr<fs::path> roofline_benchmark_path;
+
+#ifdef BOOST_ARCH_X86
+      if (roofline_freq > 0) {
+        print("Setting up roofline profiling...", false, false);
+
+        __builtin_cpu_init();
+
+        std::string freq = std::to_string(roofline_freq);
+
+        if (__builtin_cpu_is("intel")) {
+          event_strs.push_back("fp_arith_inst_retired.scalar_single," + freq +
+                               ",CARM_INTEL_SSP");
+          event_strs.push_back("fp_arith_inst_retired.scalar_double," + freq +
+                               ",CARM_INTEL_SDP");
+          event_strs.push_back("fp_arith_inst_retired.128b_packed_single," +
+                               freq + ",CARM_INTEL_SSESP");
+          event_strs.push_back("fp_arith_inst_retired.128b_packed_double," +
+                               freq + ",CARM_INTEL_SSEDP");
+          event_strs.push_back("fp_arith_inst_retired.256b_packed_single," +
+                               freq + ",CARM_INTEL_AVX2SP");
+          event_strs.push_back("fp_arith_inst_retired.256b_packed_double," +
+                               freq + ",CARM_INTEL_AVX2DP");
+          event_strs.push_back("fp_arith_inst_retired.512b_packed_single," +
+                               freq + ",CARM_INTEL_AVX512SP");
+          event_strs.push_back("fp_arith_inst_retired.512b_packed_double," +
+                               freq + ",CARM_INTEL_AVX512DP");
+          event_strs.push_back("mem_inst_retired.any," + freq +
+                               ",CARM_INTEL_MEM_LDST");
+        } else if (__builtin_cpu_is("amd")) {
+          event_strs.push_back("retired_sse_avx_operations:sp_mult_add_flops," + freq +
+                               ",CARM_AMD_SPFMA");
+          event_strs.push_back("retired_sse_avx_operations:dp_mult_add_flops," + freq +
+                               ",CARM_AMD_DPFMA");
+          event_strs.push_back("retired_sse_avx_operations:sp_add_sub_flops," + freq +
+                               ",CARM_AMD_SPADD");
+          event_strs.push_back("retired_sse_avx_operations:dp_add_sub_flops," + freq +
+                               ",CARM_AMD_DPADD");
+          event_strs.push_back("retired_sse_avx_operations:sp_mult_flops," + freq +
+                               ",CARM_AMD_SPMUL");
+          event_strs.push_back("retired_sse_avx_operations:dp_mult_flops," + freq +
+                               ",CARM_AMD_DPMUL");
+          event_strs.push_back("retired_sse_avx_operations:sp_div_flops," + freq +
+                               ",CARM_AMD_SPDIV");
+          event_strs.push_back("retired_sse_avx_operations:dp_div_flops," + freq +
+                               ",CARM_AMD_DPDIV");
+          event_strs.push_back("ls_dispatch:ld_dispatch," + freq + ",CARM_AMD_LD");
+          event_strs.push_back("ls_dispatch:store_dispatch," + freq + ",CARM_AMD_STORE");
+        } else {
+          print("Neither an Intel nor an AMD CPU has been detected! "
+                "Roofline profiling in Adaptyst is currently supported "
+                "only for these CPUs. Exiting.", true, true);
+          return 2;
+        }
+
+        if (config.find("roofline_benchmark_path") == config.end()) {
+          print("No roofline benchmarking results are provided in the config file, "
+                "running the CARM tool...(this may take a *long* while, be patient)",
+                true, false);
+          print("If you already have the results somewhere else, put the path "
+                "to them in roofline_benchmark_path in your config file (" +
+                local_config_path.string() + " or " + ADAPTYST_CONFIG_FILE + ").",
+                true, false);
+
+          if (config.find("carm_tool_path") == config.end()) {
+            print("No path to the CARM tool specified! Please download the tool "
+                  "from https://github.com/champ-hub/carm-roofline and "
+                  "put the path to it in carm_tool_path in your config file (" +
+                  local_config_path.string() + " or " + ADAPTYST_CONFIG_FILE +
+                  "). See the Adaptyst documentation for more information.",
+                  true, true);
+            return 2;
+          }
+
+          std::vector<std::string> command =
+            {"python3", fs::path(config["carm_tool_path"]) / "run.py",
+             "-out", tmp_dir};
+
+          Process process(command);
+          process.set_redirect_stdout_to_terminal();
+          process.start();
+
+          int exit_code = process.join();
+
+          if (exit_code != 0) {
+            print("The CARM tool has returned a non-zero exit code " +
+                  std::to_string(exit_code) + ". Exiting.", true, true);
+            return 2;
+          }
+
+          if (fs::copy_file(tmp_dir / "roofline" / "unnamed_roofline.csv",
+                            local_config_path.parent_path() / "roofline.csv")) {
+            roofline_benchmark_path =
+              std::make_unique<fs::path>(local_config_path.parent_path() / "roofline.csv");
+
+            std::ofstream config_output(local_config_path, std::ios_base::app);
+
+            if (!config_output) {
+              print("Could not open " + local_config_path.string() + " for writing! " +
+                    "Continuing, but you will need to put " +
+                    roofline_benchmark_path->string() + " in roofline_benchmark_path "
+                    "in your config file manually.", true, false);
+            } else {
+              config_output << "roofline_benchmark_path=";
+              config_output << roofline_benchmark_path->string();
+              config_output << std::endl;
+            }
+          } else {
+            print("Could not copy the roofline benchmark results to the Adaptyst local "
+                  "config directory! Continuing, but Adaptyst will have to run roofline "
+                  "benchmarking again next time.", true, false);
+            print("You may want to run the CARM tool manually and update "
+                  "roofline_benchmark_path in your config file (" + local_config_path.string() +
+                  " or " + ADAPTYST_CONFIG_FILE + "). See the Adaptyst documentation for "
+                  "more information.", true, false);
+
+            roofline_benchmark_path =
+              std::make_unique<fs::path>(tmp_dir / "roofline" / "unnamed_roofline.csv");
+          }
+        } else {
+          roofline_benchmark_path =
+            std::make_unique<fs::path>(config["roofline_benchmark_path"]);
+
+          if (!fs::exists(*roofline_benchmark_path)) {
+            print(roofline_benchmark_path->string() + " does not exist!",
+                  true, true);
+            print("Hint: You may want to verify roofline_benchmark_path "
+                  "in your config file (" +
+                  local_config_path.string() + " or " + ADAPTYST_CONFIG_FILE + ").",
+                  false, true);
+
+            return 2;
+          }
+
+          if (!fs::is_regular_file(fs::canonical(*roofline_benchmark_path))) {
+            print(roofline_benchmark_path->string() + " does not point to "
+                  "a regular file!", true, true);
+            print("Hint: You may want to verify roofline_benchmark_path "
+                  "in your config file (" +
+                  local_config_path.string() + " or " + ADAPTYST_CONFIG_FILE + ").",
+                  false, true);
+
+            return 2;
+          }
+        }
+      }
+#endif
 
       std::unordered_map<std::string, std::string> event_dict;
 
@@ -331,21 +536,13 @@ namespace adaptyst {
         profilers[i]->set_acceptor(acceptor, server_buffer);
       }
 
-      pid_t current_pid = getpid();
-      fs::path tmp_dir = fs::temp_directory_path() /
-        ("adaptyst.pid." + std::to_string(current_pid));
-
-      if (fs::exists(tmp_dir)) {
-        fs::remove_all(tmp_dir);
-      }
-
       std::vector<pid_t> spawned_children;
       int to_return = 0;
 
       try {
         int code = start_profiling_session(profilers, command_elements, address, server_buffer,
                                            warmup, cpu_config, tmp_dir, spawned_children,
-                                           event_dict, codes_dst);
+                                           event_dict, codes_dst, roofline_benchmark_path.get());
 
         auto end_time =
           ch::duration_cast<ch::milliseconds>(ch::system_clock::now().time_since_epoch()).count();
@@ -355,25 +552,18 @@ namespace adaptyst {
 
           print("Done in " + std::to_string(end_time - start_time) + " ms in total! "
                 "You can check the results directory now.", false, false);
-        } else if (code != 1) {
-          print("For investigating what has gone wrong, you can check the files created in " +
-                tmp_dir.string() + ".", false, true);
         }
 
         to_return = code;
       } catch (ConnectionException &e) {
         print("I/O error has occurred! Exiting.", false, true);
         print("Details: " + std::string(e.what()), false, true);
-        print("For investigating what has gone wrong, you can check the files created in " +
-              tmp_dir.string() + ".", false, true);
 
         to_return = 2;
       } catch (std::exception &e) {
         print("A fatal error has occurred! If the issue persits, "
               "please contact the Adaptyst developers, citing \"" +
               std::string(e.what()) + "\".", false, true);
-        print("For investigating what has gone wrong, you can check the files created in " +
-              tmp_dir.string() + ".", false, true);
 
         to_return = 2;
       }

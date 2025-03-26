@@ -205,7 +205,8 @@ namespace adaptyst {
                               CPUConfig &cpu_config, fs::path tmp_dir,
                               std::vector<pid_t> &spawned_children,
                               std::unordered_map<std::string, std::string> &event_dict,
-                              std::string codes_dst);
+                              std::string codes_dst,
+                              fs::path *roofline_benchmark_path);
 };
 
 #endif

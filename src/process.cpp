@@ -60,6 +60,11 @@ namespace adaptyst {
     this->stdout_path = path;
   }
 
+  void Process::set_redirect_stdout_to_terminal() {
+    this->stdout_redirect = true;
+    this->stdout_terminal = true;
+  }
+
   void Process::set_redirect_stdout(Process &process) {
     this->stdout_redirect = true;
 
@@ -75,6 +80,10 @@ namespace adaptyst {
   void Process::set_redirect_stderr(fs::path path) {
     this->stderr_redirect = true;
     this->stderr_path = path;
+  }
+
+  int Process::start(fs::path working_path) {
+    return start(false, CPUConfig(""), false, working_path);
   }
 
   int Process::start(bool wait_for_notify,
@@ -183,24 +192,26 @@ namespace adaptyst {
       }
 
       if (this->stdout_redirect) {
-        int stdout_fd;
+        if (!this->stdout_terminal) {
+          int stdout_fd;
 
-        if (this->stdout_fd == nullptr) {
-          stdout_fd = creat(this->stdout_path.c_str(),
-                                S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+          if (this->stdout_fd == nullptr) {
+            stdout_fd = creat(this->stdout_path.c_str(),
+                              S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
 
-          if (stdout_fd == -1) {
-            std::exit(Process::ERROR_STDOUT);
+            if (stdout_fd == -1) {
+              std::exit(Process::ERROR_STDOUT);
+            }
+          } else {
+            stdout_fd = *(this->stdout_fd);
           }
-        } else {
-          stdout_fd = *(this->stdout_fd);
-        }
 
-        if (dup2(stdout_fd, STDOUT_FILENO) == -1) {
-          std::exit(Process::ERROR_STDOUT_DUP2);
-        }
+          if (dup2(stdout_fd, STDOUT_FILENO) == -1) {
+            std::exit(Process::ERROR_STDOUT_DUP2);
+          }
 
-        close(stdout_fd);
+          close(stdout_fd);
+        }
       } else {
         if (dup2(this->stdout_pipe[1], STDOUT_FILENO) == -1) {
           std::exit(Process::ERROR_STDOUT_DUP2);
@@ -231,11 +242,13 @@ namespace adaptyst {
 
       env[env_entries.size()] = nullptr;
 
-      cpu_set_t affinity = is_profiler ? cpu_config.get_cpu_profiler_set() :
-        cpu_config.get_cpu_command_set();
+      if (cpu_config.is_valid()) {
+        cpu_set_t affinity = is_profiler ? cpu_config.get_cpu_profiler_set() :
+          cpu_config.get_cpu_command_set();
 
-      if (sched_setaffinity(0, sizeof(affinity), &affinity) == -1) {
-        std::exit(Process::ERROR_AFFINITY);
+        if (sched_setaffinity(0, sizeof(affinity), &affinity) == -1) {
+          std::exit(Process::ERROR_AFFINITY);
+        }
       }
 
       execvpe(this->command[0].c_str(), argv, env);

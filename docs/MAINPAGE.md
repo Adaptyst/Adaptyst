@@ -6,15 +6,11 @@ To get started, please:
 2. Go through the source code, starting with ```entrypoint.hpp```/```entrypoint.cpp``` inside ```src``` and ```src/server``` and using the documentation along the way to get to know the specific classes and functions (you can browse "Namespaces" and "Classes" for this purpose).
 
 ### Preprocessor definitions
-These are the CMake-set preprocessor definitions you should be aware of:
+These are the CMake-set Adaptyst-specific (i.e. non-Boost) preprocessor definitions you should be aware of:
 * ```SERVER_ONLY```: set when Adaptyst is compiled only with the backend component (i.e. adaptyst-server).
 * ```LIBNUMA_AVAILABLE```: set when Adaptyst is compiled with libnuma support.
 * ```ADAPTYST_CONFIG_FILE```: the path to the Adaptyst config file, CMake sets it to ```/etc/adaptyst.conf``` by default.
 * ```ADAPTYST_SCRIPT_PATH```: the path to the directory with Adaptyst "perf" Python scripts, CMake sets it to ```/opt/adaptyst``` by default.
-
-### Adaptyst config file
-In the current version, there is only one field in the Adaptyst config file:
-* ```perf_path```: the path to an installation directory of the Adaptyst-patched "perf" (with ```bin``` etc. directories inside). In case of no changes to the installation options, this is ```/opt/adaptyst/perf``` by default.
 
 ### Tests
 Making sure the tests pass and updating these when needed is crucial during the Adaptyst development. They are implemented using [the GoogleTest framework](https://github.com/google/googletest) and their codes are stored inside the ```test``` directory.
