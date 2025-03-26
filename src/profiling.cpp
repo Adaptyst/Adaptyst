@@ -1074,7 +1074,7 @@ namespace adaptyst {
       }
 
       if (rl_result_path != nullptr) {
-        if (!fs::copy_file(*rl_result_path, result_processed)) {
+        if (!fs::copy_file(*rl_result_path, result_processed / "roofline.csv")) {
           print("Could not copy the roofline benchmarking results to the profiling "
                 "session result directory! Exiting.", true, true);
           return 2;
