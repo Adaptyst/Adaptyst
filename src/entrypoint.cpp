@@ -168,17 +168,9 @@ namespace adaptyst {
             "(PERIOD must be a number).";
         }
 
-        if (match[1] == "CARM_SSP" ||
-            match[1] == "CARM_SDP" ||
-            match[1] == "CARM_SSESP" ||
-            match[1] == "CARM_SSEDP" ||
-            match[1] == "CARM_AVX2SP" ||
-            match[1] == "CARM_AVX2DP" ||
-            match[1] == "CARM_AVX512SP" ||
-            match[1] == "CARM_AVX512DP" ||
-            match[1] == "CARM_MEM_LDST") {
-          return "The title in \"" + arg + "\" is a reserved keyword "
-            "(" + match[1].str() + "), you cannot use it.";
+        if (std::regex_match(match[1].str(), std::regex("^CARM_.*$"))) {
+          return "The title in \"" + arg + "\" starts with a reserved keyword "
+            "CARM_, you cannot use it.";
         }
 
         return std::string();
@@ -377,6 +369,55 @@ namespace adaptyst {
       if (roofline_freq > 0) {
         print("Setting up roofline profiling...", false, false);
 
+        __builtin_cpu_init();
+
+        std::string freq = std::to_string(roofline_freq);
+
+        if (__builtin_cpu_is("intel")) {
+          event_strs.push_back("fp_arith_inst_retired.scalar_single," + freq +
+                               ",CARM_INTEL_SSP");
+          event_strs.push_back("fp_arith_inst_retired.scalar_double," + freq +
+                               ",CARM_INTEL_SDP");
+          event_strs.push_back("fp_arith_inst_retired.128b_packed_single," +
+                               freq + ",CARM_INTEL_SSESP");
+          event_strs.push_back("fp_arith_inst_retired.128b_packed_double," +
+                               freq + ",CARM_INTEL_SSEDP");
+          event_strs.push_back("fp_arith_inst_retired.256b_packed_single," +
+                               freq + ",CARM_INTEL_AVX2SP");
+          event_strs.push_back("fp_arith_inst_retired.256b_packed_double," +
+                               freq + ",CARM_INTEL_AVX2DP");
+          event_strs.push_back("fp_arith_inst_retired.512b_packed_single," +
+                               freq + ",CARM_INTEL_AVX512SP");
+          event_strs.push_back("fp_arith_inst_retired.512b_packed_double," +
+                               freq + ",CARM_INTEL_AVX512DP");
+          event_strs.push_back("mem_inst_retired.any," + freq +
+                               ",CARM_INTEL_MEM_LDST");
+        } else if (__builtin_cpu_is("amd")) {
+          event_strs.push_back("retired_sse_avx_operations:sp_mult_add_flops," + freq +
+                               ",CARM_AMD_SPFMA");
+          event_strs.push_back("retired_sse_avx_operations:dp_mult_add_flops," + freq +
+                               ",CARM_AMD_DPFMA");
+          event_strs.push_back("retired_sse_avx_operations:sp_add_sub_flops," + freq +
+                               ",CARM_AMD_SPADD");
+          event_strs.push_back("retired_sse_avx_operations:dp_add_sub_flops," + freq +
+                               ",CARM_AMD_DPADD");
+          event_strs.push_back("retired_sse_avx_operations:sp_mult_flops," + freq +
+                               ",CARM_AMD_SPMUL");
+          event_strs.push_back("retired_sse_avx_operations:dp_mult_flops," + freq +
+                               ",CARM_AMD_DPMUL");
+          event_strs.push_back("retired_sse_avx_operations:sp_div_flops," + freq +
+                               ",CARM_AMD_SPDIV");
+          event_strs.push_back("retired_sse_avx_operations:dp_div_flops," + freq +
+                               ",CARM_AMD_DPDIV");
+          event_strs.push_back("ls_dispatch:ld_dispatch," + freq + ",CARM_AMD_LD");
+          event_strs.push_back("ls_dispatch:store_dispatch," + freq + ",CARM_AMD_STORE");
+        } else {
+          print("Neither an Intel nor an AMD CPU has been detected! "
+                "Roofline profiling in Adaptyst is currently supported "
+                "only for these CPUs. Exiting.", true, true);
+          return 2;
+        }
+
         if (config.find("roofline_benchmark_path") == config.end()) {
           print("No roofline benchmarking results are provided in the config file, "
                 "running the CARM tool...(this may take a *long* while, be patient)",
@@ -467,17 +508,6 @@ namespace adaptyst {
             return 2;
           }
         }
-
-        std::string freq = std::to_string(roofline_freq);
-        event_strs.push_back("fp_arith_inst_retired.scalar_single," + freq + ",CARM_SSP");
-        event_strs.push_back("fp_arith_inst_retired.scalar_double," + freq + ",CARM_SDP");
-        event_strs.push_back("fp_arith_inst_retired.128b_packed_single," + freq + ",CARM_SSESP");
-        event_strs.push_back("fp_arith_inst_retired.128b_packed_double," + freq + ",CARM_SSEDP");
-        event_strs.push_back("fp_arith_inst_retired.256b_packed_single," + freq + ",CARM_AVX2SP");
-        event_strs.push_back("fp_arith_inst_retired.256b_packed_double," + freq + ",CARM_AVX2DP");
-        event_strs.push_back("fp_arith_inst_retired.512b_packed_single," + freq + ",CARM_AVX512SP");
-        event_strs.push_back("fp_arith_inst_retired.512b_packed_double," + freq + ",CARM_AVX512DP");
-        event_strs.push_back("mem_inst_retired.any," + freq + ",CARM_MEM_LDST");
       }
 #endif
 
