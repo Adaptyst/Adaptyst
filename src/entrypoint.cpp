@@ -377,9 +377,20 @@ namespace adaptyst {
       PerfEvent main(freq, off_cpu_freq, buffer, off_cpu_buffer);
       PerfEvent syscall_tree;
 
-      profilers.push_back(std::make_unique<Perf>(perf_path, syscall_tree, cpu_config,
+      PipeAcceptor::Factory generic_acceptor_factory;
+
+      std::unique_ptr<Acceptor> acceptor1 =
+          generic_acceptor_factory.make_acceptor(1);
+      std::unique_ptr<Acceptor> acceptor2 =
+          generic_acceptor_factory.make_acceptor(1);
+
+      profilers.push_back(std::make_unique<Perf>(acceptor1,
+                                                 server_buffer,
+                                                 perf_path, syscall_tree, cpu_config,
                                                  "Thread tree profiler"));
-      profilers.push_back(std::make_unique<Perf>(perf_path, main, cpu_config,
+      profilers.push_back(std::make_unique<Perf>(acceptor2,
+                                                 server_buffer,
+                                                 perf_path, main, cpu_config,
                                                  "On-CPU/Off-CPU profiler"));
 
       std::unique_ptr<fs::path> roofline_benchmark_path;
@@ -540,19 +551,16 @@ namespace adaptyst {
         int period = std::stoi(parts[1]);
         std::string website_title = parts[2];
 
+        std::unique_ptr<Acceptor> acceptor =
+          generic_acceptor_factory.make_acceptor(1);
+
         PerfEvent event(event_name, period, buffer);
-        profilers.push_back(std::make_unique<Perf>(perf_path, event, cpu_config,
+        profilers.push_back(std::make_unique<Perf>(acceptor,
+                                                   server_buffer,
+                                                   perf_path, event, cpu_config,
                                                    event_name));
 
         event_dict[event_name] = website_title;
-      }
-
-      PipeAcceptor::Factory generic_acceptor_factory;
-
-      for (int i = 0; i < profilers.size(); i++) {
-        std::unique_ptr<Acceptor> acceptor =
-          generic_acceptor_factory.make_acceptor(1);
-        profilers[i]->set_acceptor(acceptor, server_buffer);
       }
 
       std::vector<pid_t> spawned_children;

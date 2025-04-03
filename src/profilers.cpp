@@ -14,6 +14,8 @@
 #define ADAPTYST_SCRIPT_PATH "."
 #endif
 
+#define ACCEPT_TIMEOUT 5
+
 namespace adaptyst {
   /**
      Constructs a PerfEvent object corresponding to thread tree
@@ -79,6 +81,10 @@ namespace adaptyst {
   /**
      Constructs a Perf object.
 
+     @param acceptor   The acceptor to use for establishing a connection
+                       for exchanging generic messages with the profiler.
+     @param buf_size   The buffer size for a connection that the acceptor
+                       will accept.
      @param perf_path  The full path to the "perf" executable.
      @param perf_event The PerfEvent object corresponding to a "perf" event
                        to be used in this "perf" instance.
@@ -86,10 +92,13 @@ namespace adaptyst {
                        be used for profiling.
      @param name       The name of this "perf" instance.
   */
-  Perf::Perf(fs::path perf_path,
+  Perf::Perf(std::unique_ptr<Acceptor> &acceptor,
+             unsigned int buf_size,
+             fs::path perf_path,
              PerfEvent &perf_event,
              CPUConfig &cpu_config,
-             std::string name) : cpu_config(cpu_config) {
+             std::string name) : Profiler(acceptor, buf_size),
+                                 cpu_config(cpu_config) {
     this->perf_path = perf_path;
     this->perf_event = perf_event;
     this->name = name;
@@ -180,9 +189,7 @@ namespace adaptyst {
     this->script_proc->start(false, this->cpu_config, true, result_processed);
     this->record_proc->start(false, this->cpu_config, true, result_processed);
 
-    if (this->acceptor.get() != nullptr) {
-      this->connection = this->acceptor->accept(this->buf_size);
-    }
+    this->running = true;
 
     this->process = std::async([&, this]() {
       this->record_proc->close_stdin();
@@ -225,6 +232,7 @@ namespace adaptyst {
           break;
         }
 
+        this->running = false;
         return code;
       }
 
@@ -273,8 +281,20 @@ namespace adaptyst {
         }
       }
 
+      this->running = false;
       return code;
     });
+
+    while (true) {
+      try {
+        this->connection = this->acceptor->accept(this->buf_size, ACCEPT_TIMEOUT);
+        break;
+      } catch (TimeoutException) {
+        if (!this->running) {
+          return;
+        }
+      }
+    }
   }
 
   unsigned int Perf::get_thread_count() {

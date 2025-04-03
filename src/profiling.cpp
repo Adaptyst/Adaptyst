@@ -383,9 +383,9 @@ namespace adaptyst {
     spawned_children.push_back(wrapper_id);
 
     if (server_address == "") {
-      print("Starting adaptyst-server and profilers...", true, false);
+      print("Starting adaptyst-server...", true, false);
     } else {
-      print("Connecting to adaptyst-server and starting profilers...", true, false);
+      print("Connecting to adaptyst-server...", true, false);
     }
 
     std::unique_ptr<Connection> connection;
@@ -456,16 +456,16 @@ namespace adaptyst {
       return 2;
     }
 
+    print("Starting profilers and waiting for them to signal their "
+          "readiness. If Adaptyst hangs here, you may want to check "
+          "the files in the temporary directory.", true, false);
+
     ServerConnInstrs connection_instrs(all_connection_instrs);
 
     for (int i = 0; i < profilers.size(); i++) {
       profilers[i]->start(wrapper_id, connection_instrs, result_out,
                           result_processed, true);
     }
-
-    print("Waiting for profilers to signal their readiness. If Adaptyst "
-          "hangs here, you may want to check the files in the "
-          "temporary directory.", true, false);
 
     auto profiler_and_wrapper_handler =
       [&](int code, long start_time, long end_time) {

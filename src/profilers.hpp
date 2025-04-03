@@ -60,9 +60,12 @@ namespace adaptyst {
     int max_stack;
     std::unique_ptr<Process> record_proc;
     std::unique_ptr<Process> script_proc;
+    bool running;
 
   public:
-    Perf(fs::path perf_path,
+    Perf(std::unique_ptr<Acceptor> &acceptor,
+         unsigned int buf_size,
+         fs::path perf_path,
          PerfEvent &perf_event,
          CPUConfig &cpu_config,
          std::string name);

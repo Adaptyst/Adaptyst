@@ -61,7 +61,8 @@ namespace adaptyst {
     this->close();
   }
 
-  std::unique_ptr<Connection> TCPAcceptor::accept_connection(unsigned int buf_size) {
+  std::unique_ptr<Connection> TCPAcceptor::accept_connection(unsigned int buf_size,
+                                                             long timeout) {
     try {
       net::StreamSocket socket = this->acceptor.acceptConnection();
       return std::make_unique<TCPSocket>(socket, buf_size);
@@ -501,7 +502,8 @@ namespace adaptyst {
     }
   }
 
-  std::unique_ptr<Connection> PipeAcceptor::accept_connection(unsigned int buf_size) {
+  std::unique_ptr<Connection> PipeAcceptor::accept_connection(unsigned int buf_size,
+                                                              long timeout) {
     std::string expected = "connect";
     const int size = expected.size();
 
@@ -509,6 +511,20 @@ namespace adaptyst {
     int bytes_received = 0;
 
     while (bytes_received < size) {
+      if (timeout != NO_TIMEOUT) {
+        struct pollfd poll_struct;
+        poll_struct.fd = this->read_fd[0];
+        poll_struct.events = POLLIN;
+
+        int code = ::poll(&poll_struct, 1, 1000 * timeout);
+
+        if (code == -1) {
+          throw ConnectionException();
+        } else if (code == 0) {
+          throw TimeoutException();
+        }
+      }
+
       int received = ::read(this->read_fd[0], buf + bytes_received,
                             size - bytes_received);
 
