@@ -390,4 +390,12 @@ namespace adaptyst {
     throw Process:NotImplementedException();
 #endif
   }
+
+  void Process::terminate() {
+#ifdef BOOST_OS_UNIX
+    kill(this->id, SIGTERM);
+#else
+    throw Process::NotImplementedException();
+#endif
+  }
 };

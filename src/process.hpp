@@ -66,6 +66,7 @@ namespace adaptyst {
     int join();
     bool is_running();
     void close_stdin();
+    void terminate();
 
     class NotifyException : public std::exception { };
     class NotReadableException : public std::exception { };
