@@ -207,7 +207,7 @@ namespace adaptyst {
                               std::vector<pid_t> &spawned_children,
                               std::unordered_map<std::string, std::string> &event_dict,
                               std::string codes_dst,
-                              fs::path *roofline_benchmark_path);
+                              fs::path *rl_result_path);
 };
 
 #endif

@@ -293,8 +293,15 @@ namespace adaptyst {
      @param event_dict       A dictionary mapping custom "perf" event names to their website
                              titles (e.g. "page-faults" -> "Page faults"). This dictionary will
                              be saved to event_dict.data in the "processed" directory.
-     @param codes_dst        TODO
-     @param rl_result_path   TODO
+     @param codes_dst        A string specifying what to do with source code file paths
+                             detected during profiling. It can be either "srv" (i.e. the server
+                             receives the list, looks for the files there, and creates a source
+                             code archive there as well), "file:<path>" (i.e. the list is
+                             saved to <path> and can be then read e.g. by adaptyst-code), or
+                             "fd:<number>" (i.e. the list is written to a specified file
+                             descriptor).
+     @param rl_result_path   A pointer to the path to roofline benchmarking results produced
+                             by the CARM Tool. Can be null.
   */
   int start_profiling_session(std::vector<std::unique_ptr<Profiler> > &profilers,
                               std::vector<std::string> &command_elements,
