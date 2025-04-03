@@ -191,6 +191,15 @@ namespace adaptyst {
     app.add_flag("-q,--quiet", quiet, "Do not print anything (if set, check "
                  "exit code for any errors)");
 
+    std::string footer =
+      "If you want to change the paths of the system-wide and local Adaptyst\n"
+      "configuration files, set the environment variables ADAPTYST_CONFIG and\n"
+      "ADAPTYST_LOCAL_CONFIG respectively to values of your choice. Similarly,\n"
+      "you can set the ADAPTYST_SCRIPT_DIR environment variable to change the path\n"
+      "where Adaptyst looks for its Python scripts.";
+
+    app.footer(footer);
+
     bool call_split_unix = true;
 
     for (int i = 0; i < argc; i++) {
@@ -245,10 +254,8 @@ namespace adaptyst {
 
       print_notice();
 
-      print("Reading config file...", false, false);
+      print("Reading config file(s)...", false, false);
 
-      fs::path local_config_path = fs::path(getenv("HOME")) /
-        ".adaptyst" / "adaptyst.conf";
       std::unordered_map<std::string, std::string> config;
 
       auto read_config = [](fs::path config_path,
@@ -289,7 +296,19 @@ namespace adaptyst {
         return true;
       };
 
-      if (!read_config(ADAPTYST_CONFIG_FILE, config) ||
+      fs::path system_config_path(ADAPTYST_CONFIG_FILE);
+      fs::path local_config_path = fs::path(getenv("HOME")) /
+        ".adaptyst" / "adaptyst.conf";
+
+      if (getenv("ADAPTYST_CONFIG")) {
+        system_config_path = fs::path(getenv("ADAPTYST_CONFIG"));
+      }
+
+      if (getenv("ADAPTYST_LOCAL_CONFIG")) {
+        local_config_path = fs::path(getenv("ADAPTYST_LOCAL_CONFIG"));
+      }
+
+      if (!read_config(system_config_path, config) ||
           !read_config(local_config_path, config)) {
         return 2;
       }

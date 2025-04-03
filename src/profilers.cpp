@@ -114,6 +114,9 @@ namespace adaptyst {
     std::vector<std::string> argv_record;
     std::vector<std::string> argv_script;
 
+    std::string script_path =
+      getenv("ADAPTYST_SCRIPT_DIR") ? getenv("ADAPTYST_SCRIPT_DIR") : ADAPTYST_SCRIPT_PATH;
+
     if (this->perf_event.name == "<thread_tree>") {
       stdout = result_out / "perf_script_syscall_stdout.log";
       stderr_record = result_out / "perf_record_syscall_stderr.log";
@@ -124,7 +127,7 @@ namespace adaptyst {
                      "syscalls:sys_exit_execve,syscalls:sys_exit_execveat,"
                      "sched:sched_process_fork,sched:sched_process_exit",
                      "--sorted-stream", "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", ADAPTYST_SCRIPT_PATH "/adaptyst-syscall-process.py",
+      argv_script = {perf_path.string(), "script", "-s", script_path + "/adaptyst-syscall-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
     } else if (this->perf_event.name == "<main>") {
@@ -139,7 +142,7 @@ namespace adaptyst {
                      "--buffer-events", this->perf_event.options[2],
                      "--buffer-off-cpu-events", this->perf_event.options[3],
                      "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", ADAPTYST_SCRIPT_PATH "/adaptyst-process.py",
+      argv_script = {perf_path.string(), "script", "-s", script_path + "/adaptyst-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
     } else {
@@ -152,7 +155,7 @@ namespace adaptyst {
                      this->perf_event.name + "/period=" + this->perf_event.options[0] + "/",
                      "--buffer-events", this->perf_event.options[1],
                      "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", ADAPTYST_SCRIPT_PATH "/adaptyst-process.py",
+      argv_script = {perf_path.string(), "script", "-s", script_path + "/adaptyst-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
     }
