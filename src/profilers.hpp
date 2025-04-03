@@ -15,6 +15,7 @@
 #include <cstdlib>
 #include <unordered_map>
 #include <unordered_set>
+#include <variant>
 
 namespace adaptyst {
   namespace fs = std::filesystem;
