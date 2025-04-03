@@ -109,6 +109,21 @@ namespace adaptyst {
     unsigned int buf_size;
 
   public:
+    /**
+       Constructs a Profiler object with
+       the acceptor used for establishing a connection for
+       exchanging generic messages with the profiler.
+
+       @param acceptor The acceptor to use.
+       @param buf_size The buffer size for a connection that the
+                       acceptor will accept.
+    */
+    Profiler(std::unique_ptr<Acceptor> &acceptor,
+             unsigned int buf_size) {
+      this->acceptor = std::move(acceptor);
+      this->buf_size = buf_size;
+    }
+
     virtual ~Profiler() { }
 
     /**
@@ -172,25 +187,11 @@ namespace adaptyst {
     virtual std::vector<std::unique_ptr<Requirement> > &get_requirements() = 0;
 
     /**
-       Sets the acceptor used for establishing a connection for
-       exchanging generic messages with the profiler.
-
-       @param acceptor The acceptor to use.
-       @param buf_size The buffer size for a connection that the
-                       acceptor will accept.
-    */
-    void set_acceptor(std::unique_ptr<Acceptor> &acceptor,
-                      unsigned int buf_size) {
-      this->acceptor = std::move(acceptor);
-      this->buf_size = buf_size;
-    }
-
-    /**
        Gets the connection used for exchanging generic messages with
        the profiler.
 
        WARNING: A null pointer will be returned if start() hasn't been
-       called before or the acceptor is not set via set_acceptor().
+       called before.
     */
     std::unique_ptr<Connection> &get_connection() {
       return this->connection;
@@ -206,7 +207,7 @@ namespace adaptyst {
                               std::vector<pid_t> &spawned_children,
                               std::unordered_map<std::string, std::string> &event_dict,
                               std::string codes_dst,
-                              fs::path *roofline_benchmark_path);
+                              fs::path *rl_result_path);
 };
 
 #endif

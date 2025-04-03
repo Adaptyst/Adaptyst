@@ -293,8 +293,15 @@ namespace adaptyst {
      @param event_dict       A dictionary mapping custom "perf" event names to their website
                              titles (e.g. "page-faults" -> "Page faults"). This dictionary will
                              be saved to event_dict.data in the "processed" directory.
-     @param codes_dst        TODO
-     @param rl_result_path   TODO
+     @param codes_dst        A string specifying what to do with source code file paths
+                             detected during profiling. It can be either "srv" (i.e. the server
+                             receives the list, looks for the files there, and creates a source
+                             code archive there as well), "file:<path>" (i.e. the list is
+                             saved to <path> and can be then read e.g. by adaptyst-code), or
+                             "fd:<number>" (i.e. the list is written to a specified file
+                             descriptor).
+     @param rl_result_path   A pointer to the path to roofline benchmarking results produced
+                             by the CARM Tool. Can be null.
   */
   int start_profiling_session(std::vector<std::unique_ptr<Profiler> > &profilers,
                               std::vector<std::string> &command_elements,
@@ -383,9 +390,9 @@ namespace adaptyst {
     spawned_children.push_back(wrapper_id);
 
     if (server_address == "") {
-      print("Starting adaptyst-server and profilers...", true, false);
+      print("Starting adaptyst-server...", true, false);
     } else {
-      print("Connecting to adaptyst-server and starting profilers...", true, false);
+      print("Connecting to adaptyst-server...", true, false);
     }
 
     std::unique_ptr<Connection> connection;
@@ -456,16 +463,16 @@ namespace adaptyst {
       return 2;
     }
 
+    print("Starting profilers and waiting for them to signal their "
+          "readiness. If Adaptyst hangs here, you may want to check "
+          "the files in the temporary directory.", true, false);
+
     ServerConnInstrs connection_instrs(all_connection_instrs);
 
     for (int i = 0; i < profilers.size(); i++) {
       profilers[i]->start(wrapper_id, connection_instrs, result_out,
                           result_processed, true);
     }
-
-    print("Waiting for profilers to signal their readiness. If Adaptyst "
-          "hangs here, you may want to check the files in the "
-          "temporary directory.", true, false);
 
     auto profiler_and_wrapper_handler =
       [&](int code, long start_time, long end_time) {
@@ -620,7 +627,6 @@ namespace adaptyst {
 
     print("Processing results...", false, false);
 
-    std::unordered_set<fs::path> perf_map_paths;
     std::unordered_map<std::string, std::unordered_set<std::string> > dso_offsets;
     bool perf_maps_expected = false;
     bool profiler_error = false;
@@ -661,11 +667,11 @@ namespace adaptyst {
                   "\"data\"), ignoring.", true, false);
           }
 
-          if (parsed["type"] == "symbol_maps") {
+          if (parsed["type"] == "missing_symbol_maps") {
             if (!parsed["data"].is_array()) {
               print("Message received from profiler \"" +
                     profilers[i]->get_name() + "\" "
-                    "is a JSON object of type \"symbol_maps\", but its \"data\" "
+                    "is a JSON object of type \"missing_symbol_maps\", but its \"data\" "
                     "element is not a JSON array, ignoring.", true, false);
               continue;
             }
@@ -677,7 +683,7 @@ namespace adaptyst {
               if (!elem.is_string()) {
                 print("Element " + std::to_string(index) +
                       " in the array in the message "
-                      "of type \"symbol_maps\" received from profiler \"" +
+                      "of type \"missing_symbol_maps\" received from profiler \"" +
                       profilers[i]->get_name() +
                       "\" is not a string, ignoring this element.", true, false);
                 continue;
@@ -685,15 +691,11 @@ namespace adaptyst {
 
               fs::path perf_map_path(elem.get<std::string>());
 
-              if (fs::exists(perf_map_path)) {
-                perf_map_paths.insert(perf_map_path);
-              } else {
-                print("A symbol map is expected in " +
-                      fs::absolute(perf_map_path).string() +
-                      ", but it hasn't been found!",
-                      true, false);
-                perf_maps_expected = true;
-              }
+              print("A symbol map is expected in " +
+                    fs::absolute(perf_map_path).string() +
+                    ", but it hasn't been found!",
+                    true, false);
+              perf_maps_expected = true;
             }
           } else if (parsed["type"] == "sources") {
             if (!parsed["data"].is_object()) {
@@ -813,35 +815,6 @@ namespace adaptyst {
             "program is configured to emit \"perf\" symbol maps.", true, false);
     }
 
-    auto read_and_demangle_symbol_map =
-      [](std::ifstream &stream, std::vector<std::string> &result) {
-        while (stream) {
-          std::string line;
-          std::getline(stream, line);
-
-          if (line.empty()) {
-            continue;
-          }
-
-          std::vector<std::string> parts;
-          boost::split(parts, line, boost::is_any_of(" "));
-
-          if (parts.size() == 0) {
-            continue;
-          }
-
-          std::string new_line = "";
-
-          for (int i = 0; i < parts.size() - 1; i++) {
-            new_line += parts[i] + " ";
-          }
-
-          new_line += boost::core::demangle(parts[parts.size() - 1].c_str());
-
-          result.push_back(new_line);
-        }
-      };
-
     if (msg == "out_files") {
       bool transfer_error = false;
 
@@ -908,26 +881,6 @@ namespace adaptyst {
           transfer_error = true;
         }
       };
-
-      for (const fs::path &path : perf_map_paths) {
-        std::ifstream stream(path);
-        connection->write("p " + path.filename().string());
-
-        // A separate scope is needed for the file connection to close
-        // automatically after the transfer is finished.
-        {
-          std::unique_ptr<Connection> file_connection = get_file_connection();
-          std::vector<std::string> result;
-
-          read_and_demangle_symbol_map(stream, result);
-
-          for (std::string &new_line : result) {
-            file_connection->write(new_line);
-          }
-        }
-
-        check_data_transfer(path.filename().string());
-      }
 
       if (!src_paths.empty()) {
         if (codes_dst == "srv") {
@@ -1043,18 +996,6 @@ namespace adaptyst {
               "incomplete.", true, true);
       }
     } else {
-      for (const fs::path &path : perf_map_paths) {
-        std::ifstream stream(path);
-        std::ofstream ostream(result_processed / path.filename());
-        std::vector<std::string> result;
-
-        read_and_demangle_symbol_map(stream, result);
-
-        for (std::string &new_line : result) {
-          ostream << new_line << std::endl;
-        }
-      }
-
       if (!src_paths.empty() && codes_dst == "") {
         try {
           Archive archive(result_processed / "src.zip");

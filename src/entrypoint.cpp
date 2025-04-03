@@ -30,14 +30,14 @@ namespace adaptyst {
   class OnlyMinRange : public CLI::Validator {
   public:
     OnlyMinRange(int min) {
-      func_ = [=](const std::string &arg) {
+      func_ = [=](const std::string &arg) -> std::string {
         if (!std::regex_match(arg, std::regex("^-?[0-9]+$")) ||
             std::stoi(arg) < min) {
           return "The value must be a number equal to or greater than " +
             std::to_string(min);
         }
 
-        return std::string();
+        return "";
       };
     }
   };
@@ -101,12 +101,13 @@ namespace adaptyst {
       ->option_text("UINT");
 
     std::string address = "";
-    app.add_option("-a,--address", address, "Delegate processing to "
-                   "another machine running adaptyst-server. All results "
-                   "will be stored on that machine.")
-      ->check([](const std::string &arg) {
+    auto addr_opt =
+      app.add_option("-a,--address", address, "Delegate processing to "
+                     "another machine running adaptyst-server. All results "
+                     "will be stored on that machine.")
+      ->check([](const std::string &arg) -> std::string {
         if (!std::regex_match(arg, std::regex("^.+\\:[0-9]+$"))) {
-          return "The value must be in form of \"<address>:<port>\".";
+          return "The value must be in form of \"<address>:<port>\"";
         }
 
         return "";
@@ -124,10 +125,10 @@ namespace adaptyst {
                    "and can be then read e.g. by adaptyst-code), or "
                    "\"fd:<number>\" (i.e. the list is written to a specified "
                    "file descriptor).")
-      ->check([](const std::string &arg) {
+      ->check([](const std::string &arg) -> std::string {
         if (!std::regex_match(arg, std::regex("^(file\\:.+|fd:\\d+|srv)$"))) {
           return "The value must be in form of \"srv\", \"file:<path>\", or "
-            "\"fd:<number>\".";
+            "\"fd:<number>\"";
         }
 
         return "";
@@ -140,7 +141,7 @@ namespace adaptyst {
                    "Not to be used with -a. (default when no -a: 1024)")
       ->check(OnlyMinRange(1))
       ->option_text("UINT>0")
-      ->excludes("-a");
+      ->excludes(addr_opt);
 
     unsigned int warmup = 1;
     app.add_option("-w,--warmup", warmup, "Warmup time in seconds between "
@@ -160,20 +161,20 @@ namespace adaptyst {
                    "\"perf list\" for the list of possible events. You "
                    "can specify multiple events by specifying this option "
                    "more than once. Use quotes if you need to use spaces.")
-      ->check([](const std::string &arg) {
+      ->check([](const std::string &arg) -> std::string {
         std::smatch match;
 
         if (!std::regex_match(arg, match, std::regex("^.+,[0-9\\.]+,(.+)$"))) {
           return "The value \"" + arg + "\" must be in form of EVENT,PERIOD,TITLE "
-            "(PERIOD must be a number).";
+            "(PERIOD must be a number)";
         }
 
         if (std::regex_match(match[1].str(), std::regex("^CARM_.*$"))) {
           return "The title in \"" + arg + "\" starts with a reserved keyword "
-            "CARM_, you cannot use it.";
+            "CARM_, you cannot use it";
         }
 
-        return std::string();
+        return "";
       })
       ->option_text("EVENT,PERIOD,TITLE")
       ->take_all();
@@ -187,9 +188,73 @@ namespace adaptyst {
       ->option_text("UINT>0");
 #endif
 
+    std::string filter_str = "";
+    auto filter_opt =
+      app.add_option("-i,--filter", filter_str, "Set stack trace filtering "
+                     "options. deny:<FILE> cuts all stack elements "
+                     "matching a set of conditions specified in a given "
+                     "text file (use - for stdin). allow:<FILE> accepts "
+                     "only stack elements matching a set of conditions "
+                     "specified in a given text file (use - for stdin). "
+                     "python:<FILE> sends all stack trace elements to "
+                     "a given Python script for filtering. Unless -k is "
+                     "used, all filtered out elements are deleted "
+                     "completely. See the Adaptyst documentation to check "
+                     "in detail how to use filtering.")
+      ->check([](const std::string &arg) -> std::string {
+        std::smatch match;
+
+        if (!std::regex_match(arg, match,
+                              std::regex("^(deny|allow|python)\\:(.+)$"))) {
+          return "The value must be one of the following: "
+            "deny:<FILE>, allow:<FILE>, python:<FILE>";
+        }
+
+        if (match[2] == "-") {
+          if (match[1] == "python") {
+            return "stdin is not accepted for python";
+          }
+
+          return "";
+        }
+
+        return CLI::ExistingFile(match[2].str());
+      })
+      ->option_text("TYPE:FILE");
+
+    bool mark = false;
+    app.add_flag("-k,--mark", mark, "When -i is used, mark "
+                 "filtered out stack trace elements as \"(cut)\" and "
+                 "squash any consecutive \"(cut)\"'s into one rather "
+                 "than deleting them completely")
+      ->needs(filter_opt);
+
+    std::string capture_mode = "user";
+    app.add_option("-m,--mode", capture_mode,
+                   "Capture only kernel, only "
+                   "user (i.e. non-kernel), or both stack trace types "
+                   "respectively (default: \"user\")")
+      ->option_text("kernel OR user OR both")
+      ->check([](const std::string &arg) {
+        if (arg != "kernel" && arg != "user" && arg != "both") {
+          return "The value can be either \"kernel\", \"user\", or \"both\".";
+        }
+
+        return "";
+      });
+
     quiet = false;
     app.add_flag("-q,--quiet", quiet, "Do not print anything (if set, check "
                  "exit code for any errors)");
+
+    std::string footer =
+      "If you want to change the paths of the system-wide and local Adaptyst\n"
+      "configuration files, set the environment variables ADAPTYST_CONFIG and\n"
+      "ADAPTYST_LOCAL_CONFIG respectively to values of your choice. Similarly,\n"
+      "you can set the ADAPTYST_SCRIPT_DIR environment variable to change the path\n"
+      "where Adaptyst looks for its Python scripts.";
+
+    app.footer(footer);
 
     bool call_split_unix = true;
 
@@ -245,10 +310,8 @@ namespace adaptyst {
 
       print_notice();
 
-      print("Reading config file...", false, false);
+      print("Reading config file(s)...", false, false);
 
-      fs::path local_config_path = fs::path(getenv("HOME")) /
-        ".adaptyst" / "adaptyst.conf";
       std::unordered_map<std::string, std::string> config;
 
       auto read_config = [](fs::path config_path,
@@ -289,7 +352,19 @@ namespace adaptyst {
         return true;
       };
 
-      if (!read_config(ADAPTYST_CONFIG_FILE, config) ||
+      fs::path system_config_path(ADAPTYST_CONFIG_FILE);
+      fs::path local_config_path = fs::path(getenv("HOME")) /
+        ".adaptyst" / "adaptyst.conf";
+
+      if (getenv("ADAPTYST_CONFIG")) {
+        system_config_path = fs::path(getenv("ADAPTYST_CONFIG"));
+      }
+
+      if (getenv("ADAPTYST_LOCAL_CONFIG")) {
+        local_config_path = fs::path(getenv("ADAPTYST_LOCAL_CONFIG"));
+      }
+
+      if (!read_config(system_config_path, config) ||
           !read_config(local_config_path, config)) {
         return 2;
       }
@@ -318,6 +393,103 @@ namespace adaptyst {
               local_config_path.string() + " or " + ADAPTYST_CONFIG_FILE + ").",
               false, true);
         return 2;
+      }
+
+      Perf::Filter filter;
+      std::string allowdenylist_path;
+      std::string allowdenylist_type;
+
+      filter.mode = Perf::FilterMode::NONE;
+      filter.mark = mark;
+
+      if (filter_str != "") {
+        std::smatch match;
+
+        if (!std::regex_match(filter_str, match,
+                              std::regex("^(deny|allow|python)\\:(.+)$"))) {
+          print("The value of --filter is incorrect, this shouldn't happen! "
+                "Exiting.", false, true);
+          return 2;
+        }
+
+        if (match[1] == "allow") {
+          filter.mode = Perf::FilterMode::ALLOW;
+          allowdenylist_path = match[2];
+          allowdenylist_type = "allowlist";
+        } else if (match[1] == "deny") {
+          filter.mode = Perf::FilterMode::DENY;
+          allowdenylist_path = match[2];
+          allowdenylist_type = "denylist";
+        } else {
+          filter.mode = Perf::FilterMode::PYTHON;
+          filter.data = fs::canonical(match[2].str());
+        }
+      }
+
+      if (allowdenylist_path != "") {
+        std::vector<std::vector<std::string > > allowdenylist;
+        print("Reading " + allowdenylist_type + "...",
+              false, false);
+
+        auto process_stream =
+          [](std::istream &stream,
+             std::vector<std::vector<std::string> > &list) {
+            std::vector<std::string> elements;
+            int line = 1;
+            while (stream) {
+              std::string input = "";
+              std::getline(stream, input);
+
+              if (input.length() > 0 && input[0] != '#') {
+                if (input == "OR") {
+                  list.push_back(elements);
+                  elements.clear();
+                } else if (std::regex_match(input,
+                                            std::regex("^(SYM|EXEC|ANY) .+$"))) {
+                  elements.push_back(input);
+                } else {
+                  print("Line " + std::to_string(line) + " is non-empty and "
+                        "invalid! Exiting.", true, true);
+                  return 2;
+                }
+              }
+
+              line++;
+            }
+
+            if (!elements.empty()) {
+              list.push_back(elements);
+            }
+
+            return 0;
+          };
+
+        int result = 0;
+
+        if (allowdenylist_path == "-") {
+          if (!std::cin) {
+            print("Cannot read stdin! Exiting.", true, true);
+            return 2;
+          }
+
+          result = process_stream(std::cin, allowdenylist);
+        } else {
+          std::ifstream stream(allowdenylist_path);
+
+          if (!stream) {
+            print("Cannot read " + allowdenylist_path + "! Exiting.",
+                  true, true);
+            return 2;
+          }
+
+          result = process_stream(stream, allowdenylist);
+        }
+
+        if (result != 0) {
+          return result;
+        }
+
+        filter.data = allowdenylist;
       }
 
       print("Creating temporary directory...", false, false);
@@ -358,10 +530,33 @@ namespace adaptyst {
       PerfEvent main(freq, off_cpu_freq, buffer, off_cpu_buffer);
       PerfEvent syscall_tree;
 
-      profilers.push_back(std::make_unique<Perf>(perf_path, syscall_tree, cpu_config,
-                                                 "Thread tree profiler"));
-      profilers.push_back(std::make_unique<Perf>(perf_path, main, cpu_config,
-                                                 "On-CPU/Off-CPU profiler"));
+      PipeAcceptor::Factory generic_acceptor_factory;
+
+      std::unique_ptr<Acceptor> acceptor1 =
+          generic_acceptor_factory.make_acceptor(1);
+      std::unique_ptr<Acceptor> acceptor2 =
+          generic_acceptor_factory.make_acceptor(1);
+
+      Perf::CaptureMode mode;
+
+      if (capture_mode == "kernel") {
+        mode = Perf::CaptureMode::KERNEL;
+      } else if (capture_mode == "user") {
+        mode = Perf::CaptureMode::USER;
+      } else {
+        mode = Perf::CaptureMode::BOTH;
+      }
+
+      profilers.push_back(std::make_unique<Perf>(acceptor1,
+                                                 server_buffer,
+                                                 perf_path, syscall_tree, cpu_config,
+                                                 "Thread tree profiler",
+                                                 mode, filter));
+      profilers.push_back(std::make_unique<Perf>(acceptor2,
+                                                 server_buffer,
+                                                 perf_path, main, cpu_config,
+                                                 "On-CPU/Off-CPU profiler",
+                                                 mode, filter));
 
       std::unique_ptr<fs::path> roofline_benchmark_path;
 
@@ -521,19 +716,16 @@ namespace adaptyst {
         int period = std::stoi(parts[1]);
         std::string website_title = parts[2];
 
-        PerfEvent event(event_name, period, buffer);
-        profilers.push_back(std::make_unique<Perf>(perf_path, event, cpu_config,
-                                                   event_name));
-
-        event_dict[event_name] = website_title;
-      }
-
-      PipeAcceptor::Factory generic_acceptor_factory;
-
-      for (int i = 0; i < profilers.size(); i++) {
         std::unique_ptr<Acceptor> acceptor =
           generic_acceptor_factory.make_acceptor(1);
-        profilers[i]->set_acceptor(acceptor, server_buffer);
+
+        PerfEvent event(event_name, period, buffer);
+        profilers.push_back(std::make_unique<Perf>(acceptor,
+                                                   server_buffer,
+                                                   perf_path, event, cpu_config,
+                                                   event_name, mode, filter));
+
+        event_dict[event_name] = website_title;
       }
 
       std::vector<pid_t> spawned_children;

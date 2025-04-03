@@ -14,6 +14,8 @@
 #define ADAPTYST_SCRIPT_PATH "."
 #endif
 
+#define ACCEPT_TIMEOUT 5
+
 namespace adaptyst {
   /**
      Constructs a PerfEvent object corresponding to thread tree
@@ -79,6 +81,10 @@ namespace adaptyst {
   /**
      Constructs a Perf object.
 
+     @param acceptor   The acceptor to use for establishing a connection
+                       for exchanging generic messages with the profiler.
+     @param buf_size   The buffer size for a connection that the acceptor
+                       will accept.
      @param perf_path  The full path to the "perf" executable.
      @param perf_event The PerfEvent object corresponding to a "perf" event
                        to be used in this "perf" instance.
@@ -86,14 +92,21 @@ namespace adaptyst {
                        be used for profiling.
      @param name       The name of this "perf" instance.
   */
-  Perf::Perf(fs::path perf_path,
+  Perf::Perf(std::unique_ptr<Acceptor> &acceptor,
+             unsigned int buf_size,
+             fs::path perf_path,
              PerfEvent &perf_event,
              CPUConfig &cpu_config,
-             std::string name) : cpu_config(cpu_config) {
+             std::string name,
+             CaptureMode capture_mode,
+             Filter filter) : Profiler(acceptor, buf_size),
+                              cpu_config(cpu_config) {
     this->perf_path = perf_path;
     this->perf_event = perf_event;
     this->name = name;
     this->max_stack = 1024;
+    this->capture_mode = capture_mode;
+    this->filter = filter;
 
     this->requirements.push_back(std::make_unique<PerfEventKernelSettingsReq>(this->max_stack));
     this->requirements.push_back(std::make_unique<NUMAMitigationReq>());
@@ -114,6 +127,9 @@ namespace adaptyst {
     std::vector<std::string> argv_record;
     std::vector<std::string> argv_script;
 
+    std::string script_path =
+      getenv("ADAPTYST_SCRIPT_DIR") ? getenv("ADAPTYST_SCRIPT_DIR") : ADAPTYST_SCRIPT_PATH;
+
     if (this->perf_event.name == "<thread_tree>") {
       stdout = result_out / "perf_script_syscall_stdout.log";
       stderr_record = result_out / "perf_record_syscall_stderr.log";
@@ -124,7 +140,7 @@ namespace adaptyst {
                      "syscalls:sys_exit_execve,syscalls:sys_exit_execveat,"
                      "sched:sched_process_fork,sched:sched_process_exit",
                      "--sorted-stream", "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", ADAPTYST_SCRIPT_PATH "/adaptyst-syscall-process.py",
+      argv_script = {perf_path.string(), "script", "-s", script_path + "/adaptyst-syscall-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
     } else if (this->perf_event.name == "<main>") {
@@ -139,7 +155,7 @@ namespace adaptyst {
                      "--buffer-events", this->perf_event.options[2],
                      "--buffer-off-cpu-events", this->perf_event.options[3],
                      "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", ADAPTYST_SCRIPT_PATH "/adaptyst-process.py",
+      argv_script = {perf_path.string(), "script", "-s", script_path + "/adaptyst-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
     } else {
@@ -152,9 +168,18 @@ namespace adaptyst {
                      this->perf_event.name + "/period=" + this->perf_event.options[0] + "/",
                      "--buffer-events", this->perf_event.options[1],
                      "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", ADAPTYST_SCRIPT_PATH "/adaptyst-process.py",
+      argv_script = {perf_path.string(), "script", "-s", script_path + "/adaptyst-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
+    }
+
+    if (this->capture_mode == KERNEL) {
+      argv_record.push_back("--kernel-callchains");
+    } else if (this->capture_mode == USER) {
+      argv_record.push_back("--user-callchains");
+    } else if (this->capture_mode == BOTH) {
+      argv_record.push_back("--kernel-callchains");
+      argv_record.push_back("--user-callchains");
     }
 
     this->record_proc = std::make_unique<Process>(argv_record);
@@ -177,9 +202,7 @@ namespace adaptyst {
     this->script_proc->start(false, this->cpu_config, true, result_processed);
     this->record_proc->start(false, this->cpu_config, true, result_processed);
 
-    if (this->acceptor.get() != nullptr) {
-      this->connection = this->acceptor->accept(this->buf_size);
-    }
+    this->running = true;
 
     this->process = std::async([&, this]() {
       this->record_proc->close_stdin();
@@ -222,6 +245,7 @@ namespace adaptyst {
           break;
         }
 
+        this->running = false;
         return code;
       }
 
@@ -270,8 +294,51 @@ namespace adaptyst {
         }
       }
 
+      this->running = false;
       return code;
     });
+
+    while (true) {
+      try {
+        this->connection = this->acceptor->accept(this->buf_size, ACCEPT_TIMEOUT);
+        break;
+      } catch (TimeoutException) {
+        if (!this->running) {
+          return;
+        }
+      }
+    }
+
+    if (this->filter.mode != NONE) {
+      nlohmann::json allowdenylist_json = nlohmann::json::object();
+
+      if (this->filter.mode == ALLOW) {
+        allowdenylist_json["type"] = "filter_settings";
+        allowdenylist_json["data"] = nlohmann::json::object();
+        allowdenylist_json["data"]["type"] = "allow";
+        allowdenylist_json["data"]["mark"] = this->filter.mark;
+        allowdenylist_json["data"]["conditions"] =
+          std::get<std::vector<std::vector<std::string> > >(this->filter.data);
+      } else if (this->filter.mode == DENY) {
+        allowdenylist_json["type"] = "filter_settings";
+        allowdenylist_json["data"] = nlohmann::json::object();
+        allowdenylist_json["data"]["type"] = "deny";
+        allowdenylist_json["data"]["mark"] = this->filter.mark;
+        allowdenylist_json["data"]["conditions"] =
+          std::get<std::vector<std::vector<std::string> > >(this->filter.data);
+      } else if (this->filter.mode == PYTHON) {
+        allowdenylist_json["type"] = "filter_settings";
+        allowdenylist_json["data"] = nlohmann::json::object();
+        allowdenylist_json["data"]["type"] = "python";
+        allowdenylist_json["data"]["mark"] = this->filter.mark;
+        allowdenylist_json["data"]["script"] =
+          std::get<fs::path>(this->filter.data);
+      }
+
+      this->connection->write(allowdenylist_json.dump());
+    }
+
+    this->connection->write("<STOP>", true);
   }
 
   unsigned int Perf::get_thread_count() {

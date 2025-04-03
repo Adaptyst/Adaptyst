@@ -179,8 +179,15 @@ namespace adaptyst {
 
        It should always return the new connection, regardless of the
        number of connections already accepted by the object.
+
+       @param buf_size The buffer size for communication, in bytes.
+       @param timeout  The maximum number of seconds the acceptor will
+                       wait for to accept a connection. Afterwards,
+                       TimeoutException will be thrown. Use NO_TIMEOUT
+                       to wait indefinitely for a connection.
     */
-    virtual std::unique_ptr<Connection> accept_connection(unsigned int buf_size) = 0;
+    virtual std::unique_ptr<Connection> accept_connection(unsigned int buf_size,
+                                                          long timeout) = 0;
 
     /**
        Closes the acceptor.
@@ -216,17 +223,24 @@ namespace adaptyst {
        a runtime error is thrown immediately.
 
        @param buf_size The buffer size for communication, in bytes.
+       @param timeout  The maximum number of seconds the acceptor
+                       will wait for to accept a connection. Afterwards,
+                       TimeoutException will be thrown. Use NO_TIMEOUT
+                       to wait indefinitely for a connection.
 
        @throw std::runtime_error When the maximum number of accepted
                                  connections is reached.
+       @throw TimeoutException   When the timeout is reached.
     */
-    std::unique_ptr<Connection> accept(unsigned int buf_size) {
+    std::unique_ptr<Connection> accept(unsigned int buf_size,
+                                       long timeout = NO_TIMEOUT) {
       if (this->max_accepted != UNLIMITED_ACCEPTED &&
           this->accepted >= this->max_accepted) {
         throw std::runtime_error("Maximum accepted connections reached.");
       }
 
-      std::unique_ptr<Connection> connection = this->accept_connection(buf_size);
+      std::unique_ptr<Connection> connection = this->accept_connection(buf_size,
+                                                                       timeout);
       this->accepted++;
 
       return connection;
@@ -290,7 +304,8 @@ namespace adaptyst {
                 bool try_subsequent_ports);
 
   protected:
-    std::unique_ptr<Connection> accept_connection(unsigned int buf_size);
+    std::unique_ptr<Connection> accept_connection(unsigned int buf_size,
+                                                  long timeout);
     void close();
 
   public:
@@ -378,7 +393,8 @@ namespace adaptyst {
     PipeAcceptor();
 
   protected:
-    std::unique_ptr<Connection> accept_connection(unsigned int buf_size);
+    std::unique_ptr<Connection> accept_connection(unsigned int buf_size,
+                                                  long timeout);
     void close();
 
   public:
