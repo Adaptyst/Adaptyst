@@ -620,7 +620,6 @@ namespace adaptyst {
 
     print("Processing results...", false, false);
 
-    std::unordered_set<fs::path> perf_map_paths;
     std::unordered_map<std::string, std::unordered_set<std::string> > dso_offsets;
     bool perf_maps_expected = false;
     bool profiler_error = false;
@@ -661,11 +660,11 @@ namespace adaptyst {
                   "\"data\"), ignoring.", true, false);
           }
 
-          if (parsed["type"] == "symbol_maps") {
+          if (parsed["type"] == "missing_symbol_maps") {
             if (!parsed["data"].is_array()) {
               print("Message received from profiler \"" +
                     profilers[i]->get_name() + "\" "
-                    "is a JSON object of type \"symbol_maps\", but its \"data\" "
+                    "is a JSON object of type \"missing_symbol_maps\", but its \"data\" "
                     "element is not a JSON array, ignoring.", true, false);
               continue;
             }
@@ -677,7 +676,7 @@ namespace adaptyst {
               if (!elem.is_string()) {
                 print("Element " + std::to_string(index) +
                       " in the array in the message "
-                      "of type \"symbol_maps\" received from profiler \"" +
+                      "of type \"missing_symbol_maps\" received from profiler \"" +
                       profilers[i]->get_name() +
                       "\" is not a string, ignoring this element.", true, false);
                 continue;
@@ -685,15 +684,11 @@ namespace adaptyst {
 
               fs::path perf_map_path(elem.get<std::string>());
 
-              if (fs::exists(perf_map_path)) {
-                perf_map_paths.insert(perf_map_path);
-              } else {
-                print("A symbol map is expected in " +
-                      fs::absolute(perf_map_path).string() +
-                      ", but it hasn't been found!",
-                      true, false);
-                perf_maps_expected = true;
-              }
+              print("A symbol map is expected in " +
+                    fs::absolute(perf_map_path).string() +
+                    ", but it hasn't been found!",
+                    true, false);
+              perf_maps_expected = true;
             }
           } else if (parsed["type"] == "sources") {
             if (!parsed["data"].is_object()) {
@@ -813,35 +808,6 @@ namespace adaptyst {
             "program is configured to emit \"perf\" symbol maps.", true, false);
     }
 
-    auto read_and_demangle_symbol_map =
-      [](std::ifstream &stream, std::vector<std::string> &result) {
-        while (stream) {
-          std::string line;
-          std::getline(stream, line);
-
-          if (line.empty()) {
-            continue;
-          }
-
-          std::vector<std::string> parts;
-          boost::split(parts, line, boost::is_any_of(" "));
-
-          if (parts.size() == 0) {
-            continue;
-          }
-
-          std::string new_line = "";
-
-          for (int i = 0; i < parts.size() - 1; i++) {
-            new_line += parts[i] + " ";
-          }
-
-          new_line += boost::core::demangle(parts[parts.size() - 1].c_str());
-
-          result.push_back(new_line);
-        }
-      };
-
     if (msg == "out_files") {
       bool transfer_error = false;
 
@@ -908,26 +874,6 @@ namespace adaptyst {
           transfer_error = true;
         }
       };
-
-      for (const fs::path &path : perf_map_paths) {
-        std::ifstream stream(path);
-        connection->write("p " + path.filename().string());
-
-        // A separate scope is needed for the file connection to close
-        // automatically after the transfer is finished.
-        {
-          std::unique_ptr<Connection> file_connection = get_file_connection();
-          std::vector<std::string> result;
-
-          read_and_demangle_symbol_map(stream, result);
-
-          for (std::string &new_line : result) {
-            file_connection->write(new_line);
-          }
-        }
-
-        check_data_transfer(path.filename().string());
-      }
 
       if (!src_paths.empty()) {
         if (codes_dst == "srv") {
@@ -1043,18 +989,6 @@ namespace adaptyst {
               "incomplete.", true, true);
       }
     } else {
-      for (const fs::path &path : perf_map_paths) {
-        std::ifstream stream(path);
-        std::ofstream ostream(result_processed / path.filename());
-        std::vector<std::string> result;
-
-        read_and_demangle_symbol_map(stream, result);
-
-        for (std::string &new_line : result) {
-          ostream << new_line << std::endl;
-        }
-      }
-
       if (!src_paths.empty() && codes_dst == "") {
         try {
           Archive archive(result_processed / "src.zip");

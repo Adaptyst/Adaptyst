@@ -50,6 +50,27 @@ namespace adaptyst {
      A class describing a Linux "perf" profiler.
   */
   class Perf : public Profiler {
+  public:
+    enum CaptureMode {
+      KERNEL,
+      USER,
+      BOTH
+    };
+
+    enum FilterMode {
+      ALLOW,
+      DENY,
+      PYTHON,
+      NONE
+    };
+
+    struct Filter {
+      FilterMode mode;
+      bool mark;
+      std::variant<fs::path,
+                   std::vector<std::vector<std::string> > > data;
+    };
+
   private:
     fs::path perf_path;
     std::future<int> process;
@@ -60,6 +81,8 @@ namespace adaptyst {
     int max_stack;
     std::unique_ptr<Process> record_proc;
     std::unique_ptr<Process> script_proc;
+    CaptureMode capture_mode;
+    Filter filter;
     bool running;
 
   public:
@@ -68,7 +91,9 @@ namespace adaptyst {
          fs::path perf_path,
          PerfEvent &perf_event,
          CPUConfig &cpu_config,
-         std::string name);
+         std::string name,
+         CaptureMode capture_mode,
+         Filter filter);
     ~Perf() {}
     std::string get_name();
     void start(pid_t pid,
