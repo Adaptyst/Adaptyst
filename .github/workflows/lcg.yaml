@@ -11,7 +11,7 @@ jobs:
     - uses: cvmfs-contrib/github-action-cvmfs@v4
     - uses: aidasoft/run-lcg-view@v3
       with:
-        container: el9
+        container: "el9"
         run: |
           source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Fri/Boost/1.87.0/x86_64-el9-gcc13-opt/Boost-env.sh
           source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Fri/libarchive/3.7.9/x86_64-el9-gcc13-opt/libarchive-env.sh
