@@ -9,9 +9,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: cvmfs-contrib/github-action-cvmfs@v4
-    - name: Compile
+    - uses: aidasoft/run-lcg-view@v3
+      with:
+        view_path: /cvmfs/sft.cern.ch/lcg/views/dev4/latest/x86_64-el9-gcc13-opt/
       run: |
-          source /cvmfs/sft.cern.ch/lcg/views/dev4/latest/x86_64-el9-gcc13-opt/setup.sh
           mkdir build
           cd build
           echo "::group::CMakeConfig"
