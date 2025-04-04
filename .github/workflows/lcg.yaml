@@ -11,7 +11,7 @@ jobs:
     - uses: cvmfs-contrib/github-action-cvmfs@v4
     - uses: aidasoft/run-lcg-view@v3
       with:
-        release_platform: "dev4/x86_64-el9-gcc13-opt"
+        release-platform: "dev4/x86_64-el9-gcc13-opt"
         run: |
           mkdir build
           cd build
