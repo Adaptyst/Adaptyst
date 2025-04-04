@@ -1,0 +1,20 @@
+name: linux
+
+on: [push, pull_request]
+
+jobs:
+
+  default:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: cvmfs-contrib/github-action-cvmfs@v4
+    - name: Compile
+      run: |
+          source /cvmfs/sft.cern.ch/lcg/views/dev4/latest/x86_64-el9-gcc13-opt/setup.sh
+          mkdir build
+          cd build
+          echo "::group::CMakeConfig"
+          cmake .. -G Ninja
+          echo "::group::Compile"
+          ninja
