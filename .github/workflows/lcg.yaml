@@ -19,6 +19,6 @@ jobs:
           mkdir build
           cd build
           echo "::group::CMakeConfig"
-          cmake .. -G Ninja
+          cmake ..
           echo "::group::Compile"
-          ninja
+          make
