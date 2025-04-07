@@ -16,6 +16,7 @@ jobs:
         setup-script: "Boost-env.sh"
         run: |
           source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Fri/libarchive/3.7.9/x86_64-el9-gcc13-opt/libarchive-env.sh
+          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/jsonmcpp/3.11.3/x86_64-el9-gcc13-opt/jsonmcpp-env.sh
           mkdir build
           cd build
           echo "::group::CMakeConfig"
