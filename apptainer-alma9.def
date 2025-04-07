@@ -7,7 +7,9 @@ From: {{ registry }}/adaptyst/alma9-fp:latest
 %post
     dnf install -y git cmake numactl-devel cli11-devel json-devel poco-devel boost-devel libarchive-devel clang libtraceevent-devel flex bison elfutils-libelf-devel ninja-build
     cd adaptyst
-    ./build.sh -G Ninja
-    echo | ./install.sh /usr
+    mkdir build && cd build
+    cmake .. -G Ninja
+    cmake --build .
+    cmake --install . --prefix /usr
     dnf remove -y clang ninja-build
-    cd .. && rm -rf adaptyst
+    cd ../.. && rm -rf adaptyst

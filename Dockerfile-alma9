@@ -1,6 +1,6 @@
 FROM gitlab-registry.cern.ch/adaptyst/alma9-fp
 RUN mkdir -p /root/adaptyst
 COPY . /root/adaptyst/
-RUN dnf install -y git cmake numactl-devel cli11-devel json-devel poco-devel boost-devel libarchive-devel clang libtraceevent-devel flex bison elfutils-libelf-devel ninja-build && cd /root/adaptyst && ./build.sh -G Ninja && { echo | ./install.sh /usr; } && cd .. && rm -rf adaptyst && dnf remove -y clang ninja-build
+RUN dnf install -y git cmake numactl-devel cli11-devel json-devel poco-devel boost-devel libarchive-devel clang libtraceevent-devel flex bison elfutils-libelf-devel ninja-build && cd /root/adaptyst && mkdir build && cd build && cmake .. -G Ninja && cmake --build . && cmake --install . --prefix /usr && cd ../.. && rm -rf adaptyst && dnf remove -y clang ninja-build
 RUN setcap cap_perfmon,cap_bpf,cap_ipc_lock,cap_syslog+ep /opt/adaptyst/perf/bin/perf && useradd -m alma9-adaptyst
 USER alma9-adaptyst

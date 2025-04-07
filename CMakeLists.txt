@@ -76,7 +76,37 @@ target_link_libraries(adaptyst-server PUBLIC adaptystserv)
 target_include_directories(adaptyst-server PUBLIC
   ${CMAKE_SOURCE_DIR}/src/cmd)
 
+install(TARGETS adaptystserv LIBRARY)
+install(TARGETS adaptyst-server RUNTIME)
+
 if(NOT SERVER_ONLY)
+  # Patched "perf" setup
+  include(ExternalProject)
+
+  if(PERF_REPOSITORY_DIR)
+    ExternalProject_Add(perf
+      SOURCE_DIR ${PERF_REPOSITORY_DIR}
+      CONFIGURE_COMMAND ""
+      BUILD_IN_SOURCE TRUE
+      BUILD_COMMAND sh -c "make -C tools/perf install BUILD_BPF_SKEL=1 prefix=\"${CMAKE_BINARY_DIR}/perf-install\""
+      INSTALL_COMMAND "")
+  else()
+    ExternalProject_Add(perf
+      SOURCE_DIR linux
+      GIT_REPOSITORY https://gitlab.cern.ch/adaptyst/linux
+      GIT_TAG master
+      GIT_SHALLOW TRUE
+      GIT_PROGRESS TRUE
+      CONFIGURE_COMMAND ""
+      BUILD_IN_SOURCE TRUE
+      BUILD_COMMAND sh -c "make -C tools/perf install BUILD_BPF_SKEL=1 prefix=\"${CMAKE_BINARY_DIR}/perf-install\""
+      INSTALL_COMMAND "")
+  endif()
+
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/perf-install/ DESTINATION ${ADAPTYST_SCRIPT_PATH}/perf)
+  install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${ADAPTYST_SCRIPT_PATH}/perf)")
+
+  # Main Adaptyst setup
   add_executable(adaptyst
     src/main.cpp
     src/print.cpp
@@ -139,6 +169,11 @@ if(NOT SERVER_ONLY)
   endif()
 
   target_link_libraries(adaptyst PUBLIC adaptystserv)
+
+  install(TARGETS adaptyst RUNTIME)
+  install(PROGRAMS src/utils/adaptyst-code.py TYPE BIN RENAME adaptyst-code)
+  install(FILES src/scripts/adaptyst-syscall-process.py src/scripts/adaptyst-process.py
+    DESTINATION ${ADAPTYST_SCRIPT_PATH})
 else()
   find_package(Boost REQUIRED)
 

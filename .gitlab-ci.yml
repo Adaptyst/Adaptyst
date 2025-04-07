@@ -16,8 +16,10 @@ compile-gentoo:
   before_script:
     - emerge -g --quiet-build=y llvm-core/clang
   script:
-    - ./build.sh -G Ninja
-    - echo | PATH=$PATH:$(dirname /usr/lib/llvm/*/bin/clang) ./install.sh
+    - mkdir build && cd build
+    - cmake .. -G Ninja
+    - PATH=$PATH:$(dirname /usr/lib/llvm/*/bin/clang) cmake --build .
+    - cmake --install .
     - mkdir -p install/etc install/opt install/usr/local/bin install/usr/local/lib
     - cp /etc/adaptyst.conf install/etc/
     - cp -r /opt/adaptyst install/opt/
@@ -35,8 +37,10 @@ compile-alma9:
   before_script:
     - dnf install -y git cmake numactl-devel cli11-devel json-devel poco-devel boost-devel libarchive-devel clang libtraceevent-devel flex bison elfutils-libelf-devel ninja-build
   script:
-    - ./build.sh -G Ninja
-    - echo | ./install.sh /usr
+    - mkdir build && cd build
+    - cmake .. -G Ninja
+    - cmake --build .
+    - cmake --install . --prefix /usr
     - mkdir -p install/etc install/opt install/usr/bin install/usr/lib
     - cp /etc/adaptyst.conf install/etc/
     - cp -r /opt/adaptyst install/opt/
@@ -153,8 +157,9 @@ deploy-to-syclops-gentoo-profiling:
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
   script:
-    - ./build.sh -G Ninja
-    - echo | sudo ./install.sh
+    - mkdir build && cd build
+    - cmake .. -G Ninja
+    - sudo cmake --install .
     - sudo setcap cap_perfmon,cap_bpf,cap_ipc_lock,cap_syslog+ep /opt/adaptyst/perf/bin/perf
   after_script:
-    - sudo rm -rf $CI_PROJECT_DIR/linux
+    - sudo rm -rf $CI_PROJECT_DIR/build
