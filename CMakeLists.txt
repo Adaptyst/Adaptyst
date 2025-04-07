@@ -48,54 +48,46 @@ execute_process(
 
 configure_file(src/version.cpp.in version.cpp @ONLY)
 
-add_library(version.o OBJECT version.cpp)
-target_include_directories(version.o PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_library(adaptystserv SHARED
+  src/server/server.cpp
+  src/server/client.cpp
+  src/server/subclient.cpp
+  src/server/socket.cpp
+  src/archive.cpp
+  version.cpp)
 
-add_library(archive.o OBJECT src/archive.cpp)
-
-add_library(client.o OBJECT src/server/client.cpp)
-target_include_directories(client.o PRIVATE ${CMAKE_SOURCE_DIR}/src)
-
-add_library(server.o OBJECT src/server/server.cpp)
-add_library(subclient.o OBJECT src/server/subclient.cpp)
-
-add_library(socket.o OBJECT src/server/socket.cpp)
-if(SERVER_ONLY)
-  target_compile_definitions(socket.o PRIVATE SERVER_ONLY)
-endif()
-
-add_library(server_entrypoint.o OBJECT src/server/entrypoint.cpp)
-target_include_directories(server_entrypoint.o PRIVATE ${CMAKE_SOURCE_DIR}/src/cmd)
-
-add_library(adaptystserv SHARED)
 target_link_libraries(adaptystserv PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(adaptystserv PUBLIC Poco::Foundation Poco::Net)
 target_link_libraries(adaptystserv PUBLIC LibArchive::LibArchive)
-target_link_libraries(adaptystserv PRIVATE server.o client.o subclient.o socket.o archive.o)
+
+if(SERVER_ONLY)
+  target_compile_definitions(adaptystserv PRIVATE SERVER_ONLY)
+endif()
+
+target_include_directories(adaptystserv PUBLIC ${CMAKE_SOURCE_DIR}/src)
 
 add_executable(adaptyst-server
-  src/main.cpp)
+  src/main.cpp
+  src/server/entrypoint.cpp)
 
 target_compile_definitions(adaptyst-server PRIVATE SERVER_ONLY)
-target_link_libraries(adaptyst-server PUBLIC Poco::Foundation Poco::Net)
-target_link_libraries(adaptyst-server PUBLIC CLI11::CLI11)
-target_link_libraries(adaptyst-server PRIVATE adaptystserv server_entrypoint.o version.o)
+target_link_libraries(adaptyst-server PUBLIC Poco::Foundation Poco::Net CLI11::CLI11)
+target_link_libraries(adaptyst-server PUBLIC adaptystserv)
+target_include_directories(adaptyst-server PUBLIC
+  ${CMAKE_SOURCE_DIR}/src/cmd)
 
 if(NOT SERVER_ONLY)
   add_executable(adaptyst
-    src/main.cpp)
+    src/main.cpp
+    src/print.cpp
+    src/profilers.cpp
+    src/profiling.cpp
+    src/requirements.cpp
+    src/process.cpp
+    src/entrypoint.cpp)
 
-  add_library(main_entrypoint.o OBJECT src/entrypoint.cpp)
-  target_include_directories(main_entrypoint.o PRIVATE ${CMAKE_SOURCE_DIR}/src/cmd)
-
-  add_library(print.o OBJECT src/print.cpp)
-  add_library(profilers.o OBJECT src/profilers.cpp)
-  add_library(profiling.o OBJECT src/profiling.cpp)
-  add_library(requirements.o OBJECT src/requirements.cpp)
-  add_library(process.o OBJECT src/process.cpp)
-
-  target_compile_definitions(profilers.o PRIVATE ADAPTYST_SCRIPT_PATH="${ADAPTYST_SCRIPT_PATH}")
-  target_compile_definitions(main_entrypoint.o PRIVATE ADAPTYST_CONFIG_FILE="${ADAPTYST_CONFIG_PATH}")
+  target_compile_definitions(adaptyst PRIVATE ADAPTYST_SCRIPT_PATH="${ADAPTYST_SCRIPT_PATH}")
+  target_compile_definitions(adaptyst PRIVATE ADAPTYST_CONFIG_FILE="${ADAPTYST_CONFIG_PATH}")
 
   find_package(Boost REQUIRED program_options)
 
@@ -109,7 +101,11 @@ if(NOT SERVER_ONLY)
   target_link_libraries(adaptyst PUBLIC Boost::program_options)
   target_link_libraries(adaptyst PUBLIC LibArchive::LibArchive)
 
+  target_include_directories(adaptyst PUBLIC
+    ${CMAKE_SOURCE_DIR}/src/cmd)
+
   target_include_directories(adaptyst PUBLIC ${Boost_INCLUDE_DIRS})
+  target_include_directories(adaptystserv PUBLIC ${Boost_INCLUDE_DIRS})
 
   find_library(LIBNUMA
     NAMES numa
@@ -137,14 +133,12 @@ if(NOT SERVER_ONLY)
   endif()
 
   if(LIBNUMA_AVAILABLE)
-    target_compile_definitions(requirements.o PRIVATE LIBNUMA_AVAILABLE)
-    target_include_directories(requirements.o PRIVATE ${LIBNUMA_INCLUDE})
+    target_compile_definitions(adaptyst PRIVATE LIBNUMA_AVAILABLE)
+    target_include_directories(adaptyst PUBLIC ${LIBNUMA_INCLUDE})
     target_link_libraries(adaptyst PUBLIC numa)
   endif()
 
-  target_link_libraries(adaptyst PRIVATE adaptystserv)
-  target_link_libraries(adaptyst PRIVATE
-    profiling.o requirements.o profilers.o print.o archive.o main_entrypoint.o process.o version.o)
+  target_link_libraries(adaptyst PUBLIC adaptystserv)
 else()
   find_package(Boost REQUIRED)
 
@@ -180,16 +174,16 @@ if (ENABLE_TESTS)
   target_include_directories(auto-test-socket PRIVATE ${CMAKE_SOURCE_DIR}/src/server)
 
   target_link_libraries(auto-test-server PUBLIC GTest::gtest_main GTest::gmock_main Poco::Foundation Poco::Net)
-  target_link_libraries(auto-test-server PRIVATE server.o client.o)
+  target_link_libraries(auto-test-server PRIVATE adaptystserv)
 
   target_link_libraries(auto-test-client PUBLIC GTest::gtest_main GTest::gmock_main Poco::Foundation Poco::Net)
-  target_link_libraries(auto-test-client PRIVATE client.o)
+  target_link_libraries(auto-test-client PRIVATE adaptystserv)
 
   target_link_libraries(auto-test-subclient PUBLIC GTest::gtest_main GTest::gmock_main Poco::Foundation Poco::Net)
-  target_link_libraries(auto-test-subclient PRIVATE subclient.o)
+  target_link_libraries(auto-test-subclient PRIVATE adaptystserv)
 
   target_link_libraries(auto-test-socket PUBLIC GTest::gtest_main GTest::gmock_main Poco::Foundation Poco::Net)
-  target_link_libraries(auto-test-socket PRIVATE socket.o)
+  target_link_libraries(auto-test-socket PRIVATE adaptystserv)
 
   include(GoogleTest)
   gtest_discover_tests(auto-test-server)
