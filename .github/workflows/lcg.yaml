@@ -24,4 +24,4 @@ jobs:
           echo "::group::CMakeConfig"
           cmake ..
           echo "::group::Compile"
-          make
+          make VERBOSE=1
