@@ -73,7 +73,8 @@ namespace adaptyst {
     };
 
   private:
-    fs::path perf_path;
+    fs::path perf_bin_path;
+    fs::path perf_python_path;
     std::future<int> process;
     PerfEvent perf_event;
     CPUConfig &cpu_config;
@@ -89,7 +90,8 @@ namespace adaptyst {
   public:
     Perf(std::unique_ptr<Acceptor> &acceptor,
          unsigned int buf_size,
-         fs::path perf_path,
+         fs::path perf_bin_path,
+         fs::path perf_python_path,
          PerfEvent &perf_event,
          CPUConfig &cpu_config,
          std::string name,
