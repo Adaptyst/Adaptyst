@@ -81,30 +81,34 @@ install(TARGETS adaptyst-server RUNTIME)
 
 if(NOT SERVER_ONLY)
   # Patched "perf" setup
-  include(ExternalProject)
-
-  if(PERF_REPOSITORY_DIR)
-    ExternalProject_Add(perf
-      SOURCE_DIR ${PERF_REPOSITORY_DIR}
-      CONFIGURE_COMMAND ""
-      BUILD_IN_SOURCE TRUE
-      BUILD_COMMAND sh -c "make -C tools/perf install BUILD_BPF_SKEL=1 prefix=\"${CMAKE_BINARY_DIR}/perf-install\""
-      INSTALL_COMMAND "")
+  if(PERF_DIR)
+    install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${PERF_DIR})")
   else()
-    ExternalProject_Add(perf
-      SOURCE_DIR linux
-      GIT_REPOSITORY https://gitlab.cern.ch/adaptyst/linux
-      GIT_TAG master
-      GIT_SHALLOW TRUE
-      GIT_PROGRESS TRUE
-      CONFIGURE_COMMAND ""
-      BUILD_IN_SOURCE TRUE
-      BUILD_COMMAND sh -c "make -C tools/perf install BUILD_BPF_SKEL=1 prefix=\"${CMAKE_BINARY_DIR}/perf-install\""
-      INSTALL_COMMAND "")
-  endif()
+    include(ExternalProject)
 
-  install(DIRECTORY ${CMAKE_BINARY_DIR}/perf-install/ DESTINATION ${ADAPTYST_SCRIPT_PATH}/perf USE_SOURCE_PERMISSIONS)
-  install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${ADAPTYST_SCRIPT_PATH}/perf)")
+    if(PERF_REPOSITORY_DIR)
+      ExternalProject_Add(perf
+        SOURCE_DIR ${PERF_REPOSITORY_DIR}
+        CONFIGURE_COMMAND ""
+        BUILD_IN_SOURCE TRUE
+        BUILD_COMMAND sh -c "make -C tools/perf install BUILD_BPF_SKEL=1 prefix=\"${CMAKE_BINARY_DIR}/perf-install\""
+        INSTALL_COMMAND "")
+    else()
+      ExternalProject_Add(perf
+        SOURCE_DIR linux
+        GIT_REPOSITORY https://gitlab.cern.ch/adaptyst/linux
+        GIT_TAG master
+        GIT_SHALLOW TRUE
+        GIT_PROGRESS TRUE
+        CONFIGURE_COMMAND ""
+        BUILD_IN_SOURCE TRUE
+        BUILD_COMMAND sh -c "make -C tools/perf install BUILD_BPF_SKEL=1 prefix=\"${CMAKE_BINARY_DIR}/perf-install\""
+        INSTALL_COMMAND "")
+    endif()
+
+    install(DIRECTORY ${CMAKE_BINARY_DIR}/perf-install/ DESTINATION ${ADAPTYST_SCRIPT_PATH}/perf USE_SOURCE_PERMISSIONS)
+    install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${ADAPTYST_SCRIPT_PATH}/perf)")
+  endif()
 
   # Main Adaptyst setup
   add_executable(adaptyst
