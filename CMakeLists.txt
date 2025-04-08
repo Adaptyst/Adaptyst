@@ -16,8 +16,10 @@ endif()
 
 option(SERVER_ONLY "Compile only adaptyst-server (OS-portable)" OFF)
 option(ENABLE_TESTS "Enable Adaptyst automated tests" OFF)
+option(PERF "Compile patched \"perf\"" ON)
 set(ADAPTYST_SCRIPT_PATH "/opt/adaptyst" CACHE STRING "Path where Adaptyst helper scripts should be installed into")
 set(ADAPTYST_CONFIG_PATH "/etc/adaptyst.conf" CACHE STRING "Path where Adaptyst config file should be stored in")
+set(PERF_TAG "dev-20250408" CACHE STRING "Patched \"perf\" git tag which should be used for setting up \"perf\"")
 
 if(SERVER_ONLY)
   project(adaptyst-server
@@ -81,33 +83,35 @@ install(TARGETS adaptyst-server RUNTIME)
 
 if(NOT SERVER_ONLY)
   # Patched "perf" setup
-  if(PERF_DIR)
-    install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${PERF_DIR})")
-  else()
-    include(ExternalProject)
-
-    if(PERF_REPOSITORY_DIR)
-      ExternalProject_Add(perf
-        SOURCE_DIR ${PERF_REPOSITORY_DIR}
-        CONFIGURE_COMMAND ""
-        BUILD_IN_SOURCE TRUE
-        BUILD_COMMAND sh -c "make -C tools/perf install BUILD_BPF_SKEL=1 prefix=\"${CMAKE_BINARY_DIR}/perf-install\""
-        INSTALL_COMMAND "")
+  if(PERF)
+    if(PERF_DIR)
+      install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${PERF_DIR})")
     else()
-      ExternalProject_Add(perf
-        SOURCE_DIR linux
-        GIT_REPOSITORY https://gitlab.cern.ch/adaptyst/linux
-        GIT_TAG master
-        GIT_SHALLOW TRUE
-        GIT_PROGRESS TRUE
-        CONFIGURE_COMMAND ""
-        BUILD_IN_SOURCE TRUE
-        BUILD_COMMAND sh -c "make -C tools/perf install BUILD_BPF_SKEL=1 prefix=\"${CMAKE_BINARY_DIR}/perf-install\""
-        INSTALL_COMMAND "")
-    endif()
+      include(ExternalProject)
 
-    install(DIRECTORY ${CMAKE_BINARY_DIR}/perf-install/ DESTINATION ${ADAPTYST_SCRIPT_PATH}/perf USE_SOURCE_PERMISSIONS)
-    install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${ADAPTYST_SCRIPT_PATH}/perf)")
+      if(PERF_REPOSITORY_DIR)
+        ExternalProject_Add(perf
+          SOURCE_DIR ${PERF_REPOSITORY_DIR}
+          CONFIGURE_COMMAND ""
+          BUILD_IN_SOURCE TRUE
+          BUILD_COMMAND sh -c "make -C tools/perf install BUILD_BPF_SKEL=1 prefix=\"${CMAKE_BINARY_DIR}/perf-install\""
+          INSTALL_COMMAND "")
+      else()
+        ExternalProject_Add(perf
+          SOURCE_DIR linux
+          GIT_REPOSITORY https://gitlab.cern.ch/adaptyst/linux
+          GIT_TAG ${PERF_TAG}
+          GIT_SHALLOW TRUE
+          GIT_PROGRESS TRUE
+          CONFIGURE_COMMAND ""
+          BUILD_IN_SOURCE TRUE
+          BUILD_COMMAND sh -c "make -C tools/perf install BUILD_BPF_SKEL=1 prefix=\"${CMAKE_BINARY_DIR}/perf-install\""
+          INSTALL_COMMAND "")
+      endif()
+
+      install(DIRECTORY ${CMAKE_BINARY_DIR}/perf-install/ DESTINATION ${ADAPTYST_SCRIPT_PATH}/perf USE_SOURCE_PERMISSIONS)
+      install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${ADAPTYST_SCRIPT_PATH}/perf)")
+    endif()
   endif()
 
   # Main Adaptyst setup
