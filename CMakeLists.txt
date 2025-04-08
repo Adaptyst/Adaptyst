@@ -27,7 +27,7 @@ if(SERVER_ONLY)
     LANGUAGES CXX)
 else()
   project(adaptyst
-    DESCRIPTION "Comprehensive profiling tool based on Linux perf"
+    DESCRIPTION "Performance analysis tool"
     LANGUAGES CXX)
 endif()
 
