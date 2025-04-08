@@ -103,7 +103,7 @@ if(NOT SERVER_ONLY)
       INSTALL_COMMAND "")
   endif()
 
-  install(DIRECTORY ${CMAKE_BINARY_DIR}/perf-install/ DESTINATION ${ADAPTYST_SCRIPT_PATH}/perf)
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/perf-install/ DESTINATION ${ADAPTYST_SCRIPT_PATH}/perf USE_SOURCE_PERMISSIONS)
   install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${ADAPTYST_SCRIPT_PATH}/perf)")
 
   # Main Adaptyst setup
