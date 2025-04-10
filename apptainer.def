@@ -7,8 +7,10 @@ From: {{ registry }}/adaptyst/gentoo-fp:latest
 %post
     emerge dev-build/ninja
     cd adaptyst
-    ./build.sh -G Ninja
+    mkdir build && cd build
+    cmake .. -G Ninja
     emerge -g --quiet-build=y llvm-core/clang
-    echo | PATH=$PATH:$(dirname /usr/lib/llvm/*/bin/clang) ./install.sh
+    PATH=$PATH:$(dirname /usr/lib/llvm/*/bin/clang) cmake --build .
+    cmake --install .
     emerge --deselect llvm-core/clang dev-build/ninja && emerge --depclean
-    cd .. && rm -rf adaptyst
+    cd ../.. && rm -rf adaptyst

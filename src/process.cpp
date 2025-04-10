@@ -2,6 +2,7 @@
 // Copyright (C) CERN. See LICENSE for details.
 
 #include "process.hpp"
+#include <regex>
 #include <boost/algorithm/string.hpp>
 
 #ifdef BOOST_OS_UNIX
@@ -31,6 +32,25 @@ namespace adaptyst {
     this->stdin_pipe[1] = -1;
     this->stdout_pipe[0] = -1;
     this->stdout_pipe[1] = -1;
+
+    char **cur_existing_env_entry = environ;
+
+    while (*cur_existing_env_entry != nullptr) {
+      std::smatch match;
+      std::string cur_entry(*cur_existing_env_entry);
+
+      if (!std::regex_match(cur_entry,
+                            match,
+                            std::regex("^(.+)\\=(.*)$"))) {
+        continue;
+      }
+
+      if (this->env.find(match[1]) == this->env.end()) {
+        this->env[match[1]] = match[2];
+      }
+
+      cur_existing_env_entry++;
+    }
 #endif
   }
 
@@ -52,7 +72,7 @@ namespace adaptyst {
   }
 
   void Process::add_env(std::string key, std::string value) {
-    this->env.push_back(std::make_pair(key, value));
+    this->env[key] = value;
   }
 
   void Process::set_redirect_stdout(fs::path path) {
@@ -101,15 +121,9 @@ namespace adaptyst {
     }
 
     std::vector<std::string> env_entries;
-    char **cur_existing_env_entry = environ;
 
-    while (*cur_existing_env_entry != nullptr) {
-      env_entries.push_back(std::string(*cur_existing_env_entry));
-      cur_existing_env_entry++;
-    }
-
-    for (int i = 0; i < this->env.size(); i++) {
-      env_entries.push_back(this->env[i].first + "=" + this->env[i].second);
+    for (auto &entry : this->env) {
+      env_entries.push_back(entry.first + "=" + entry.second);
     }
 
     if (this->notifiable && pipe(this->notify_pipe) == -1) {

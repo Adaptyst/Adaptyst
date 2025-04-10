@@ -81,27 +81,31 @@ namespace adaptyst {
   /**
      Constructs a Perf object.
 
-     @param acceptor   The acceptor to use for establishing a connection
-                       for exchanging generic messages with the profiler.
-     @param buf_size   The buffer size for a connection that the acceptor
-                       will accept.
-     @param perf_path  The full path to the "perf" executable.
-     @param perf_event The PerfEvent object corresponding to a "perf" event
-                       to be used in this "perf" instance.
-     @param cpu_config A CPUConfig object describing how CPU cores should
-                       be used for profiling.
-     @param name       The name of this "perf" instance.
+     @param acceptor         The acceptor to use for establishing a connection
+                             for exchanging generic messages with the profiler.
+     @param buf_size         The buffer size for a connection that the acceptor
+                             will accept.
+     @param perf_bin_path    The full path to the "perf" executable.
+     @param perf_python_path The full path to the directory with "perf" Python scripts
+                             (usually ending with "libexec/perf-core/scripts/python/Perf-Trace-Util/lib/Perf/Trace")
+     @param perf_event       The PerfEvent object corresponding to a "perf" event
+                             to be used in this "perf" instance.
+     @param cpu_config       A CPUConfig object describing how CPU cores should
+                             be used for profiling.
+     @param name             The name of this "perf" instance.
   */
   Perf::Perf(std::unique_ptr<Acceptor> &acceptor,
              unsigned int buf_size,
-             fs::path perf_path,
+             fs::path perf_bin_path,
+             fs::path perf_python_path,
              PerfEvent &perf_event,
              CPUConfig &cpu_config,
              std::string name,
              CaptureMode capture_mode,
              Filter filter) : Profiler(acceptor, buf_size),
                               cpu_config(cpu_config) {
-    this->perf_path = perf_path;
+    this->perf_bin_path = perf_bin_path;
+    this->perf_python_path = perf_python_path;
     this->perf_event = perf_event;
     this->name = name;
     this->max_stack = 1024;
@@ -135,12 +139,14 @@ namespace adaptyst {
       stderr_record = result_out / "perf_record_syscall_stderr.log";
       stderr_script = result_out / "perf_script_syscall_stderr.log";
 
-      argv_record = {perf_path.string(), "record", "-o", "-", "--call-graph", "fp", "-k",
+      argv_record = {this->perf_bin_path.string(), "record", "-o", "-",
+                     "--call-graph", "fp", "-k",
                      "CLOCK_MONOTONIC", "--buffer-events", "1", "-e",
                      "syscalls:sys_exit_execve,syscalls:sys_exit_execveat,"
                      "sched:sched_process_fork,sched:sched_process_exit",
                      "--sorted-stream", "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", script_path + "/adaptyst-syscall-process.py",
+      argv_script = {this->perf_bin_path.string(), "script", "-s",
+                     script_path + "/adaptyst-syscall-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
     } else if (this->perf_event.name == "<main>") {
@@ -148,14 +154,16 @@ namespace adaptyst {
       stderr_record = result_out / "perf_record_main_stderr.log";
       stderr_script = result_out / "perf_script_main_stderr.log";
 
-      argv_record = {perf_path.string(), "record", "-o", "-", "--call-graph", "fp", "-k",
+      argv_record = {this->perf_bin_path.string(), "record", "-o", "-",
+                     "--call-graph", "fp", "-k",
                      "CLOCK_MONOTONIC", "--sorted-stream", "-e",
                      "task-clock", "-F", this->perf_event.options[0],
                      "--off-cpu", this->perf_event.options[1],
                      "--buffer-events", this->perf_event.options[2],
                      "--buffer-off-cpu-events", this->perf_event.options[3],
                      "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", script_path + "/adaptyst-process.py",
+      argv_script = {this->perf_bin_path.string(), "script", "-s",
+                     script_path + "/adaptyst-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
     } else {
@@ -163,12 +171,14 @@ namespace adaptyst {
       stderr_record = result_out / ("perf_record_" + this->perf_event.name + "_stderr.log");
       stderr_script = result_out / ("perf_script_" + this->perf_event.name + "_stderr.log");
 
-      argv_record = {perf_path.string(), "record", "-o", "-", "--call-graph", "fp", "-k",
+      argv_record = {this->perf_bin_path.string(), "record", "-o", "-",
+                     "--call-graph", "fp", "-k",
                      "CLOCK_MONOTONIC", "--sorted-stream", "-e",
                      this->perf_event.name + "/period=" + this->perf_event.options[0] + "/",
                      "--buffer-events", this->perf_event.options[1],
                      "--pid=" + std::to_string(pid)};
-      argv_script = {perf_path.string(), "script", "-s", script_path + "/adaptyst-process.py",
+      argv_script = {this->perf_bin_path.string(), "script", "-s",
+                     script_path + "/adaptyst-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
     }
@@ -187,6 +197,17 @@ namespace adaptyst {
 
     this->script_proc = std::make_unique<Process>(argv_script);
     this->script_proc->add_env("ADAPTYST_SERV_CONNECT", instrs);
+
+    char *cur_pythonpath = getenv("PYTHONPATH");
+
+    if (cur_pythonpath) {
+      this->script_proc->add_env("PYTHONPATH",
+                                 this->perf_python_path.string() + ":" +
+                                 std::string(cur_pythonpath));
+    } else {
+      this->script_proc->add_env("PYTHONPATH",
+                                 this->perf_python_path.string());
+    }
 
     if (this->acceptor.get() != nullptr) {
       std::string instrs = this->acceptor->get_type() + " " +

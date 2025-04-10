@@ -377,18 +377,36 @@ namespace adaptyst {
       }
 
       fs::path perf_path(config["perf_path"]);
-      perf_path = perf_path / "bin" / "perf";
+      fs::path perf_bin_path = perf_path / "bin" / "perf";
+      fs::path perf_python_path = perf_path / "libexec" / "perf-core" / "scripts" /
+        "python" / "Perf-Trace-Util" / "lib" / "Perf" / "Trace";
 
-      if (!fs::exists(perf_path)) {
-        print(perf_path.string() + " does not exist!", true, true);
+      if (!fs::exists(perf_bin_path)) {
+        print(perf_bin_path.string() + " does not exist!", true, true);
         print("Hint: You may want to verify perf_path in your config file (" +
               local_config_path.string() + " or " + ADAPTYST_CONFIG_FILE + ").",
               false, true);
         return 2;
       }
 
-      if (!fs::is_regular_file(fs::canonical(perf_path))) {
-        print(perf_path.string() + " does not point to regular file!", true, true);
+      if (!fs::is_regular_file(fs::canonical(perf_bin_path))) {
+        print(perf_bin_path.string() + " does not point to a regular file!", true, true);
+        print("Hint: You may want to verify perf_path in your config file (" +
+              local_config_path.string() + " or " + ADAPTYST_CONFIG_FILE + ").",
+              false, true);
+        return 2;
+      }
+
+      if (!fs::exists(perf_python_path)) {
+        print(perf_python_path.string() + " does not exist!", true, true);
+        print("Hint: You may want to verify perf_path in your config file (" +
+              local_config_path.string() + " or " + ADAPTYST_CONFIG_FILE + ").",
+              false, true);
+        return 2;
+      }
+
+      if (!fs::is_directory(fs::canonical(perf_python_path))) {
+        print(perf_python_path.string() + " does not point to a directory!", true, true);
         print("Hint: You may want to verify perf_path in your config file (" +
               local_config_path.string() + " or " + ADAPTYST_CONFIG_FILE + ").",
               false, true);
@@ -549,12 +567,16 @@ namespace adaptyst {
 
       profilers.push_back(std::make_unique<Perf>(acceptor1,
                                                  server_buffer,
-                                                 perf_path, syscall_tree, cpu_config,
+                                                 perf_bin_path,
+                                                 perf_python_path,
+                                                 syscall_tree, cpu_config,
                                                  "Thread tree profiler",
                                                  mode, filter));
       profilers.push_back(std::make_unique<Perf>(acceptor2,
                                                  server_buffer,
-                                                 perf_path, main, cpu_config,
+                                                 perf_bin_path,
+                                                 perf_python_path,
+                                                 main, cpu_config,
                                                  "On-CPU/Off-CPU profiler",
                                                  mode, filter));
 
@@ -722,7 +744,9 @@ namespace adaptyst {
         PerfEvent event(event_name, period, buffer);
         profilers.push_back(std::make_unique<Perf>(acceptor,
                                                    server_buffer,
-                                                   perf_path, event, cpu_config,
+                                                   perf_bin_path,
+                                                   perf_python_path,
+                                                   event, cpu_config,
                                                    event_name, mode, filter));
 
         event_dict[event_name] = website_title;

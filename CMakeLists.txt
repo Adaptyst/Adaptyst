@@ -16,8 +16,10 @@ endif()
 
 option(SERVER_ONLY "Compile only adaptyst-server (OS-portable)" OFF)
 option(ENABLE_TESTS "Enable Adaptyst automated tests" OFF)
+option(PERF "Compile patched \"perf\"" ON)
 set(ADAPTYST_SCRIPT_PATH "/opt/adaptyst" CACHE STRING "Path where Adaptyst helper scripts should be installed into")
 set(ADAPTYST_CONFIG_PATH "/etc/adaptyst.conf" CACHE STRING "Path where Adaptyst config file should be stored in")
+set(PERF_TAG "dev-20250408" CACHE STRING "Patched \"perf\" git tag which should be used for setting up \"perf\"")
 
 if(SERVER_ONLY)
   project(adaptyst-server
@@ -25,7 +27,7 @@ if(SERVER_ONLY)
     LANGUAGES CXX)
 else()
   project(adaptyst
-    DESCRIPTION "Comprehensive profiling tool based on Linux perf"
+    DESCRIPTION "Performance analysis tool"
     LANGUAGES CXX)
 endif()
 
@@ -48,54 +50,82 @@ execute_process(
 
 configure_file(src/version.cpp.in version.cpp @ONLY)
 
-add_library(version.o OBJECT version.cpp)
-target_include_directories(version.o PRIVATE ${CMAKE_SOURCE_DIR}/src)
+add_library(adaptystserv SHARED
+  src/server/server.cpp
+  src/server/client.cpp
+  src/server/subclient.cpp
+  src/server/socket.cpp
+  src/archive.cpp
+  version.cpp)
 
-add_library(archive.o OBJECT src/archive.cpp)
-
-add_library(client.o OBJECT src/server/client.cpp)
-target_include_directories(client.o PRIVATE ${CMAKE_SOURCE_DIR}/src)
-
-add_library(server.o OBJECT src/server/server.cpp)
-add_library(subclient.o OBJECT src/server/subclient.cpp)
-
-add_library(socket.o OBJECT src/server/socket.cpp)
-if(SERVER_ONLY)
-  target_compile_definitions(socket.o PRIVATE SERVER_ONLY)
-endif()
-
-add_library(server_entrypoint.o OBJECT src/server/entrypoint.cpp)
-target_include_directories(server_entrypoint.o PRIVATE ${CMAKE_SOURCE_DIR}/src/cmd)
-
-add_library(adaptystserv SHARED)
 target_link_libraries(adaptystserv PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(adaptystserv PUBLIC Poco::Foundation Poco::Net)
 target_link_libraries(adaptystserv PUBLIC LibArchive::LibArchive)
-target_link_libraries(adaptystserv PRIVATE server.o client.o subclient.o socket.o archive.o)
+
+if(SERVER_ONLY)
+  target_compile_definitions(adaptystserv PRIVATE SERVER_ONLY)
+endif()
+
+target_include_directories(adaptystserv PUBLIC ${CMAKE_SOURCE_DIR}/src)
 
 add_executable(adaptyst-server
-  src/main.cpp)
+  src/main.cpp
+  src/server/entrypoint.cpp)
 
 target_compile_definitions(adaptyst-server PRIVATE SERVER_ONLY)
-target_link_libraries(adaptyst-server PUBLIC Poco::Foundation Poco::Net)
-target_link_libraries(adaptyst-server PUBLIC CLI11::CLI11)
-target_link_libraries(adaptyst-server PRIVATE adaptystserv server_entrypoint.o version.o)
+target_link_libraries(adaptyst-server PUBLIC Poco::Foundation Poco::Net CLI11::CLI11)
+target_link_libraries(adaptyst-server PUBLIC adaptystserv)
+target_include_directories(adaptyst-server PUBLIC
+  ${CMAKE_SOURCE_DIR}/src/cmd)
+
+install(TARGETS adaptystserv LIBRARY)
+install(TARGETS adaptyst-server RUNTIME)
 
 if(NOT SERVER_ONLY)
+  # Patched "perf" setup
+  if(PERF)
+    if(PERF_DIR)
+      install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${PERF_DIR})")
+    else()
+      include(ExternalProject)
+
+      if(PERF_REPOSITORY_DIR)
+        ExternalProject_Add(perf
+          SOURCE_DIR ${PERF_REPOSITORY_DIR}
+          CONFIGURE_COMMAND ""
+          BUILD_IN_SOURCE TRUE
+          BUILD_COMMAND sh -c "make -C tools/perf install BUILD_BPF_SKEL=1 prefix=\"${CMAKE_BINARY_DIR}/perf-install\""
+          INSTALL_COMMAND "")
+      else()
+        ExternalProject_Add(perf
+          SOURCE_DIR linux
+          GIT_REPOSITORY https://gitlab.cern.ch/adaptyst/linux
+          GIT_TAG ${PERF_TAG}
+          GIT_SHALLOW TRUE
+          GIT_PROGRESS TRUE
+          CONFIGURE_COMMAND ""
+          BUILD_IN_SOURCE TRUE
+          BUILD_COMMAND sh -c "make -C tools/perf install BUILD_BPF_SKEL=1 prefix=\"${CMAKE_BINARY_DIR}/perf-install\""
+          INSTALL_COMMAND "")
+      endif()
+
+      install(DIRECTORY ${CMAKE_BINARY_DIR}/perf-install/ DESTINATION ${ADAPTYST_SCRIPT_PATH}/perf USE_SOURCE_PERMISSIONS)
+      install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${ADAPTYST_SCRIPT_PATH}/perf)")
+    endif()
+  endif()
+
+  # Main Adaptyst setup
   add_executable(adaptyst
-    src/main.cpp)
+    src/main.cpp
+    src/print.cpp
+    src/profilers.cpp
+    src/profiling.cpp
+    src/requirements.cpp
+    src/process.cpp
+    src/entrypoint.cpp)
 
-  add_library(main_entrypoint.o OBJECT src/entrypoint.cpp)
-  target_include_directories(main_entrypoint.o PRIVATE ${CMAKE_SOURCE_DIR}/src/cmd)
-
-  add_library(print.o OBJECT src/print.cpp)
-  add_library(profilers.o OBJECT src/profilers.cpp)
-  add_library(profiling.o OBJECT src/profiling.cpp)
-  add_library(requirements.o OBJECT src/requirements.cpp)
-  add_library(process.o OBJECT src/process.cpp)
-
-  target_compile_definitions(profilers.o PRIVATE ADAPTYST_SCRIPT_PATH="${ADAPTYST_SCRIPT_PATH}")
-  target_compile_definitions(main_entrypoint.o PRIVATE ADAPTYST_CONFIG_FILE="${ADAPTYST_CONFIG_PATH}")
+  target_compile_definitions(adaptyst PRIVATE ADAPTYST_SCRIPT_PATH="${ADAPTYST_SCRIPT_PATH}")
+  target_compile_definitions(adaptyst PRIVATE ADAPTYST_CONFIG_FILE="${ADAPTYST_CONFIG_PATH}")
 
   find_package(Boost REQUIRED program_options)
 
@@ -109,7 +139,11 @@ if(NOT SERVER_ONLY)
   target_link_libraries(adaptyst PUBLIC Boost::program_options)
   target_link_libraries(adaptyst PUBLIC LibArchive::LibArchive)
 
+  target_include_directories(adaptyst PUBLIC
+    ${CMAKE_SOURCE_DIR}/src/cmd)
+
   target_include_directories(adaptyst PUBLIC ${Boost_INCLUDE_DIRS})
+  target_include_directories(adaptystserv PUBLIC ${Boost_INCLUDE_DIRS})
 
   find_library(LIBNUMA
     NAMES numa
@@ -137,14 +171,17 @@ if(NOT SERVER_ONLY)
   endif()
 
   if(LIBNUMA_AVAILABLE)
-    target_compile_definitions(requirements.o PRIVATE LIBNUMA_AVAILABLE)
-    target_include_directories(requirements.o PRIVATE ${LIBNUMA_INCLUDE})
+    target_compile_definitions(adaptyst PRIVATE LIBNUMA_AVAILABLE)
+    target_include_directories(adaptyst PUBLIC ${LIBNUMA_INCLUDE})
     target_link_libraries(adaptyst PUBLIC numa)
   endif()
 
-  target_link_libraries(adaptyst PRIVATE adaptystserv)
-  target_link_libraries(adaptyst PRIVATE
-    profiling.o requirements.o profilers.o print.o archive.o main_entrypoint.o process.o version.o)
+  target_link_libraries(adaptyst PUBLIC adaptystserv)
+
+  install(TARGETS adaptyst RUNTIME)
+  install(PROGRAMS src/utils/adaptyst-code.py TYPE BIN RENAME adaptyst-code)
+  install(FILES src/scripts/adaptyst-syscall-process.py src/scripts/adaptyst-process.py
+    DESTINATION ${ADAPTYST_SCRIPT_PATH})
 else()
   find_package(Boost REQUIRED)
 
@@ -180,16 +217,16 @@ if (ENABLE_TESTS)
   target_include_directories(auto-test-socket PRIVATE ${CMAKE_SOURCE_DIR}/src/server)
 
   target_link_libraries(auto-test-server PUBLIC GTest::gtest_main GTest::gmock_main Poco::Foundation Poco::Net)
-  target_link_libraries(auto-test-server PRIVATE server.o client.o)
+  target_link_libraries(auto-test-server PRIVATE adaptystserv)
 
   target_link_libraries(auto-test-client PUBLIC GTest::gtest_main GTest::gmock_main Poco::Foundation Poco::Net)
-  target_link_libraries(auto-test-client PRIVATE client.o)
+  target_link_libraries(auto-test-client PRIVATE adaptystserv)
 
   target_link_libraries(auto-test-subclient PUBLIC GTest::gtest_main GTest::gmock_main Poco::Foundation Poco::Net)
-  target_link_libraries(auto-test-subclient PRIVATE subclient.o)
+  target_link_libraries(auto-test-subclient PRIVATE adaptystserv)
 
   target_link_libraries(auto-test-socket PUBLIC GTest::gtest_main GTest::gmock_main Poco::Foundation Poco::Net)
-  target_link_libraries(auto-test-socket PRIVATE socket.o)
+  target_link_libraries(auto-test-socket PRIVATE adaptystserv)
 
   include(GoogleTest)
   gtest_discover_tests(auto-test-server)

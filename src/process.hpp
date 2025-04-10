@@ -16,7 +16,7 @@ namespace adaptyst {
   class Process {
   private:
     std::vector<std::string> command;
-    std::vector<std::pair<std::string, std::string> > env;
+    std::unordered_map<std::string, std::string> env;
     bool stdout_redirect;
     bool stdout_terminal;
     fs::path stdout_path;
