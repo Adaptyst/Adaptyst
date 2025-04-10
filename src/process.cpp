@@ -45,7 +45,10 @@ namespace adaptyst {
         continue;
       }
 
-      this->env[match[1]] = match[2];
+      if (this->env.find(match[1]) == this->env.end()) {
+        this->env[match[1]] = match[2];
+      }
+
       cur_existing_env_entry++;
     }
 #endif
