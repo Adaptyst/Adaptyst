@@ -237,7 +237,9 @@ def process_event(param_dict):
                     sym_result_set = True
                 else:
                     result = find_in_map(p, perf_map_match.group(1), elem['ip'])
-                    if result is not None:
+                    if result is None:
+                        sym_result[0] = f'[{elem["dso"]}]'
+                    else:
                         sym_result[0] = result
                         sym_result_set = True
             else:
