@@ -197,7 +197,17 @@ namespace adaptyst {
 
     this->script_proc = std::make_unique<Process>(argv_script);
     this->script_proc->add_env("ADAPTYST_SERV_CONNECT", instrs);
-    this->script_proc->add_env("PYTHONPATH", this->perf_python_path.string());
+
+    char *cur_pythonpath = getenv("PYTHONPATH");
+
+    if (cur_pythonpath) {
+      this->script_proc->add_env("PYTHONPATH",
+                                 this->perf_python_path.string() + ":" +
+                                 std::string(cur_pythonpath));
+    } else {
+      this->script_proc->add_env("PYTHONPATH",
+                                 this->perf_python_path.string());
+    }
 
     if (this->acceptor.get() != nullptr) {
       std::string instrs = this->acceptor->get_type() + " " +
