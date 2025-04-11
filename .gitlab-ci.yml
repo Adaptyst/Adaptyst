@@ -159,6 +159,7 @@ deploy-to-syclops-gentoo-profiling:
   script:
     - mkdir build && cd build
     - cmake $CI_PROJECT_DIR -G Ninja
+    - cmake --build .
     - sudo cmake --install .
     - sudo setcap cap_perfmon,cap_bpf,cap_ipc_lock,cap_syslog+ep /opt/adaptyst/perf/bin/perf
   after_script:
