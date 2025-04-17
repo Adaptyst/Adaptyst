@@ -145,35 +145,15 @@ if(NOT SERVER_ONLY)
   target_include_directories(adaptyst PUBLIC ${Boost_INCLUDE_DIRS})
   target_include_directories(adaptystserv PUBLIC ${Boost_INCLUDE_DIRS})
 
-  find_library(LIBNUMA
-    NAMES numa
-    DOC "libnuma")
-
-  if(LIBNUMA)
-    message(STATUS "Found libnuma: ${LIBNUMA}")
-
-    find_path(LIBNUMA_INCLUDE
-      NAMES numa.h
-      PATH_SUFFIXES include
-      DOC "libnuma header directory"
-    )
-
-    if (LIBNUMA_INCLUDE)
-      message(STATUS "Found numa.h inside ${LIBNUMA_INCLUDE}")
-      set(LIBNUMA_AVAILABLE TRUE)
-    else()
-      message(STATUS "numa.h not found, compiling without libnuma support")
-      set(LIBNUMA_AVAILABLE FALSE)
-    endif()
-  else()
-    message(STATUS "libnuma not found, compiling without libnuma support")
-    set(LIBNUMA_AVAILABLE FALSE)
-  endif()
-
-  if(LIBNUMA_AVAILABLE)
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(NUMA numa)
+  if(NUMA_FOUND)
+    message(STATUS "Found libnuma: ${NUMA_LINK_LIBRARIES}  ${NUMA_INCLUDE_DIRS}")
     target_compile_definitions(adaptyst PRIVATE LIBNUMA_AVAILABLE)
-    target_include_directories(adaptyst PUBLIC ${LIBNUMA_INCLUDE})
-    target_link_libraries(adaptyst PUBLIC numa)
+    target_include_directories(adaptyst PRIVATE ${NUMA_INCLUDE_DIRS})
+    target_link_libraries(adaptyst PUBLIC ${NUMA_LINK_LIBRARIES})
+  else()
+    message(STATUS "numa not found, compiling without libnuma support")
   endif()
 
   target_link_libraries(adaptyst PUBLIC adaptystserv)
