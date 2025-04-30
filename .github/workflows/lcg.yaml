@@ -1,7 +1,7 @@
 name: linux
 
 # on: [push, pull_request]
-on: []
+on: [push]
 
 jobs:
 
@@ -13,16 +13,23 @@ jobs:
     - uses: aidasoft/run-lcg-view@v3
       with:
         container: "el9"
-        view-path: "/cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Fri/Boost/1.87.0/x86_64-el9-gcc13-opt"
+        view-path: "/cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/Boost/1.88.0/x86_64-el9-gcc14fp-opt"
         setup-script: "Boost-env.sh"
         run: |
-          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Fri/libarchive/3.7.9/x86_64-el9-gcc13-opt/libarchive-env.sh
-          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/jsonmcpp/3.11.3/x86_64-el9-gcc13-opt/jsonmcpp-env.sh
-          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/poco/1.13.3/x86_64-el9-gcc13-opt/poco-env.sh
-          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/cli11/2.4.2/x86_64-el9-gcc13-opt/cli11-env.sh
+          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/libarchive/3.7.9/x86_64-el9-gcc14fp-opt/libarchive-env.sh
+          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/jsonmcpp/3.11.3/x86_64-el9-gcc14fp-opt/jsonmcpp-env.sh
+          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/poco/1.14.1/x86_64-el9-gcc14fp-opt/poco-env.sh
+          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/cli11/2.4.2/x86_64-el9-gcc14fp-opt/cli11-env.sh
+          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/libbpf/1.5.0/x86_64-el9-gcc14fp-opt/libbpf-env.sh
+          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/libnuma/2.0.19/x86_64-el9-gcc14fp-opt/libnuma-env.sh
+          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/libtraceevent/1.8.4/x86_64-el9-gcc14fp-opt/libtraceevent-env.sh
+          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/flex/2.6.4/x86_64-el9-gcc14fp-opt/flex-env.sh
+          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/bison/3.8.2/x86_64-el9-gcc14fp-opt/bison-env.sh
+          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/Python/3.11.9/x86_64-el9-gcc14fp-opt/Python-env.sh
+          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/perf/20250408/x86_64-el9-gcc14fp-opt/perf-env.sh
           mkdir build
           cd build
           echo "::group::CMakeConfig"
-          cmake ..
+          cmake -DPERF_DIR=${PERF__HOME} ..
           echo "::group::Compile"
           make VERBOSE=1 -k
