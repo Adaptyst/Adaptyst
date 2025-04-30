@@ -127,11 +127,13 @@ if(NOT SERVER_ONLY)
   target_compile_definitions(adaptyst PRIVATE ADAPTYST_SCRIPT_PATH="${ADAPTYST_SCRIPT_PATH}")
   target_compile_definitions(adaptyst PRIVATE ADAPTYST_CONFIG_FILE="${ADAPTYST_CONFIG_PATH}")
 
-  find_package(Boost REQUIRED program_options CONFIG
-               OPTIONAL_COMPONENTS process)
-
   if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.30")
+    find_package(Boost REQUIRED program_options CONFIG
+                 OPTIONAL_COMPONENTS process)
     message(STATUS "Found Boost: headers inside ${Boost_INCLUDE_DIRS}, version ${Boost_VERSION_STRING}")
+  else()
+    find_package(Boost REQUIRED program_options
+                 OPTIONAL_COMPONENTS process)
   endif()
 
   target_link_libraries(adaptyst PUBLIC nlohmann_json::nlohmann_json)
