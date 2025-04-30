@@ -20,7 +20,6 @@ jobs:
           source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/jsonmcpp/3.11.3/x86_64-el9-gcc14fp-opt/jsonmcpp-env.sh
           source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/poco/1.14.1/x86_64-el9-gcc14fp-opt/poco-env.sh
           source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/cli11/2.4.2/x86_64-el9-gcc14fp-opt/cli11-env.sh
-          source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/libarchive/3.7.9/x86_64-el9-gcc14fp-opt/libarchive-env.sh
           source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/libbpf/1.5.0/x86_64-el9-gcc14fp-opt/libbpf-env.sh
           source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/libnuma/2.0.19/x86_64-el9-gcc14fp-opt/libnuma-env.sh
           source /cvmfs/sft-nightlies.cern.ch/lcg/nightlies/dev4/Mon/libtraceevent/1.8.4/x86_64-el9-gcc14fp-opt/libtraceevent-env.sh
