@@ -137,7 +137,7 @@ if(NOT SERVER_ONLY)
   target_link_libraries(adaptyst PUBLIC nlohmann_json::nlohmann_json)
   target_link_libraries(adaptyst PUBLIC Poco::Foundation Poco::Net)
   target_link_libraries(adaptyst PUBLIC CLI11::CLI11)
-  target_link_libraries(adaptyst PUBLIC Boost::program_options $<TARGET_NAME_IF_EXISTS:Boost::process>)
+  target_link_libraries(adaptyst PUBLIC Boost::headers Boost::program_options $<TARGET_NAME_IF_EXISTS:Boost::process>)
   target_link_libraries(adaptyst PUBLIC LibArchive::LibArchive)
 
   target_include_directories(adaptyst PUBLIC
