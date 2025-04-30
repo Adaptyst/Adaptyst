@@ -172,6 +172,7 @@ else()
     message(STATUS "Found Boost: headers inside ${Boost_INCLUDE_DIRS}, version ${Boost_VERSION_STRING}")
   endif()
 
+  target_link_libraries(adaptystserv PUBLIC Boost::headers)
   target_include_directories(adaptystserv PUBLIC ${Boost_INCLUDE_DIRS})
 endif()
 
