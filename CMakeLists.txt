@@ -127,7 +127,8 @@ if(NOT SERVER_ONLY)
   target_compile_definitions(adaptyst PRIVATE ADAPTYST_SCRIPT_PATH="${ADAPTYST_SCRIPT_PATH}")
   target_compile_definitions(adaptyst PRIVATE ADAPTYST_CONFIG_FILE="${ADAPTYST_CONFIG_PATH}")
 
-  find_package(Boost REQUIRED program_options process)
+  find_package(Boost REQUIRED program_options CONFIG
+               OPTIONAL_COMPONENTS process)
 
   if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.30")
     message(STATUS "Found Boost: headers inside ${Boost_INCLUDE_DIRS}, version ${Boost_VERSION_STRING}")
@@ -136,7 +137,7 @@ if(NOT SERVER_ONLY)
   target_link_libraries(adaptyst PUBLIC nlohmann_json::nlohmann_json)
   target_link_libraries(adaptyst PUBLIC Poco::Foundation Poco::Net)
   target_link_libraries(adaptyst PUBLIC CLI11::CLI11)
-  target_link_libraries(adaptyst PUBLIC Boost::program_options Boost::process)
+  target_link_libraries(adaptyst PUBLIC Boost::program_options $<TARGET_NAME_IF_EXISTS:Boost::process>)
   target_link_libraries(adaptyst PUBLIC LibArchive::LibArchive)
 
   target_include_directories(adaptyst PUBLIC
