@@ -90,7 +90,7 @@ make-gentoo-docker-image:
   script:
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_DEPLOY_USER\",\"password\":\"$CI_DEPLOY_PASSWORD\"}}}" > /kaniko/.docker/config.json
     - |
-      if [[ -v CI_COMMIT_TAG ]]; then
+      if [[ "$CI_COMMIT_TAG" != "" ]]; then
         export IMAGE_DESTINATION=$CI_REGISTRY/adaptyst/adaptyst:latest
         export IMAGE_DESTINATION_DETAILED=$CI_REGISTRY/adaptyst/adaptyst:$CI_COMMIT_TAG
         /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination $IMAGE_DESTINATION --destination $IMAGE_DESTINATION_DETAILED
@@ -110,7 +110,7 @@ make-alma9-docker-image:
   script:
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_DEPLOY_USER\",\"password\":\"$CI_DEPLOY_PASSWORD\"}}}" > /kaniko/.docker/config.json
     - |
-      if [[ -v CI_COMMIT_TAG ]]; then
+      if [[ "$CI_COMMIT_TAG" != "" ]]; then
         export IMAGE_DESTINATION=$CI_REGISTRY/adaptyst/adaptyst:alma9-latest
         export IMAGE_DESTINATION_DETAILED=$CI_REGISTRY/adaptyst/adaptyst:alma9-$CI_COMMIT_TAG
         /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-alma9 --destination $IMAGE_DESTINATION --destination $IMAGE_DESTINATION_DETAILED
@@ -131,7 +131,7 @@ make-apptainer-images:
     - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" --build-arg registry="$CI_REGISTRY" adaptyst.sif $CI_PROJECT_DIR/apptainer.def
     - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" --build-arg registry="$CI_REGISTRY" adaptyst-alma9.sif $CI_PROJECT_DIR/apptainer-alma9.def
     - |
-      if [[ -v CI_COMMIT_TAG ]]; then
+      if [[ "$CI_COMMIT_TAG" != "" ]]; then
         xrdcp -C auto --rm-bad-cksum -t 5 adaptyst.sif root://eosuser.cern.ch/$WEB_STORAGE/apptainer/adaptyst-$CI_COMMIT_TAG.sif
         xrdcp -C auto --rm-bad-cksum -t 5 adaptyst-alma9.sif root://eosuser.cern.ch/$WEB_STORAGE/apptainer/adaptyst-alma9-$CI_COMMIT_TAG.sif
       fi
