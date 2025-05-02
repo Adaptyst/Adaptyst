@@ -7,6 +7,7 @@ workflow:
 stages:
   - build
   - test
+  - images
   - deploy
 
 compile-gentoo:
@@ -84,7 +85,7 @@ make-gentoo-docker-image:
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
-  stage: deploy
+  stage: images
   dependencies: []
   script:
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_DEPLOY_USER\",\"password\":\"$CI_DEPLOY_PASSWORD\"}}}" > /kaniko/.docker/config.json
@@ -95,20 +96,16 @@ make-gentoo-docker-image:
         /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination $IMAGE_DESTINATION --destination $IMAGE_DESTINATION_DETAILED
         echo "Image pushed successfully to ${IMAGE_DESTINATION} and ${IMAGE_DESTINATION_DETAILED}"
       else
-        /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --tarPath adaptyst-docker.tar --no-push
+        /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --no-push
         echo "Image built successfully"
       fi
-  artifacts:
-    paths:
-      - adaptyst-docker.tar
-    expire_in: 1 day
 
 # Based on https://gitlab.cern.ch/gitlabci-examples/build_docker_image/-/blob/master/.gitlab-ci.yml
 make-alma9-docker-image:
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
-  stage: deploy
+  stage: images
   dependencies: []
   script:
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_DEPLOY_USER\",\"password\":\"$CI_DEPLOY_PASSWORD\"}}}" > /kaniko/.docker/config.json
@@ -119,18 +116,14 @@ make-alma9-docker-image:
         /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-alma9 --destination $IMAGE_DESTINATION --destination $IMAGE_DESTINATION_DETAILED
         echo "Image pushed successfully to ${IMAGE_DESTINATION} and ${IMAGE_DESTINATION_DETAILED}"
       else
-        /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-alma9 --tarPath adaptyst-docker-alma9.tar --no-push
+        /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-alma9 --no-push
         echo "Image built successfully"
       fi
-  artifacts:
-    paths:
-      - adaptyst-docker-alma9.tar
-    expire_in: 1 day
 
 make-apptainer-images:
   tags:
     - gentoo
-  stage: deploy
+  stage: images
   dependencies: []
   before_script:
     - echo $KERBEROS_PASSWORD | kinit ${KERBEROS_USER}@CERN.CH
@@ -143,15 +136,8 @@ make-apptainer-images:
         xrdcp -C auto --rm-bad-cksum -t 5 adaptyst-alma9.sif root://eosuser.cern.ch/$WEB_STORAGE/apptainer/adaptyst-alma9-$CI_COMMIT_TAG.sif
       fi
   after_script:
-    - |
-      if [[ -v CI_COMMIT_TAG ]]; then
-        rm -f adaptyst.sif adaptyst-alma9.sif
-      fi
+    - rm -f adaptyst.sif adaptyst-alma9.sif
     - kdestroy -A
-  artifacts:
-    paths:
-      - "*.sif"
-    expire_in: 1 day
 
 deploy-to-syclops-gentoo-profiling:
   tags:
