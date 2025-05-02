@@ -43,9 +43,9 @@ find_package(CLI11 CONFIG REQUIRED)
 find_package(LibArchive REQUIRED)
 
 execute_process(
-  COMMAND git rev-parse --short HEAD
+  COMMAND git describe --tags
   WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-  OUTPUT_VARIABLE GIT_COMMIT
+  OUTPUT_VARIABLE GIT_DESC_TAG
   OUTPUT_STRIP_TRAILING_WHITESPACE)
 
 configure_file(src/version.cpp.in version.cpp @ONLY)
