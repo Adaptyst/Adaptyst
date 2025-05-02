@@ -95,10 +95,13 @@ make-gentoo-docker-image:
         /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination $IMAGE_DESTINATION --destination $IMAGE_DESTINATION_DETAILED
         echo "Image pushed successfully to ${IMAGE_DESTINATION} and ${IMAGE_DESTINATION_DETAILED}"
       else
-        export IMAGE_DESTINATION_DETAILED=$CI_REGISTRY/adaptyst/adaptyst:$CI_COMMIT_SHORT_SHA
-        /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination $IMAGE_DESTINATION_DETAILED --no-push
+        /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --tarPath adaptyst-docker.tar --no-push
         echo "Image built successfully"
       fi
+  artifacts:
+    paths:
+      - adaptyst-docker.tar
+    expire_in: 1 day
 
 # Based on https://gitlab.cern.ch/gitlabci-examples/build_docker_image/-/blob/master/.gitlab-ci.yml
 make-alma9-docker-image:
@@ -116,10 +119,13 @@ make-alma9-docker-image:
         /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-alma9 --destination $IMAGE_DESTINATION --destination $IMAGE_DESTINATION_DETAILED
         echo "Image pushed successfully to ${IMAGE_DESTINATION} and ${IMAGE_DESTINATION_DETAILED}"
       else
-        export IMAGE_DESTINATION_DETAILED=$CI_REGISTRY/adaptyst/adaptyst:alma9-$CI_COMMIT_SHORT_SHA
-        /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-alma9 --destination $IMAGE_DESTINATION_DETAILED --no-push
+        /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-alma9 --tarPath adaptyst-docker-alma9.tar --no-push
         echo "Image built successfully"
       fi
+  artifacts:
+    paths:
+      - adaptyst-docker-alma9.tar
+    expire_in: 1 day
 
 make-apptainer-images:
   tags:
