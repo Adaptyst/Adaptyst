@@ -84,8 +84,10 @@ install(TARGETS adaptyst-server RUNTIME)
 if(NOT SERVER_ONLY)
   # Patched "perf" setup
   if(PERF)
+    get_filename_component(adaptyst_config_filename ${ADAPTYST_CONFIG_PATH} NAME)
+    get_filename_component(adaptyst_config_destination ${ADAPTYST_CONFIG_PATH} DIRECTORY)
     if(PERF_DIR)
-      install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${PERF_DIR})")
+      file(WRITE ${CMAKE_BINARY_DIR}/${adaptyst_config_filename} "perf_path=${PERF_DIR}")
     else()
       include(ExternalProject)
 
@@ -108,10 +110,10 @@ if(NOT SERVER_ONLY)
           BUILD_COMMAND sh -c "make -C tools/perf install BUILD_BPF_SKEL=1 prefix=\"${CMAKE_BINARY_DIR}/perf-install\""
           INSTALL_COMMAND "")
       endif()
-
       install(DIRECTORY ${CMAKE_BINARY_DIR}/perf-install/ DESTINATION ${ADAPTYST_SCRIPT_PATH}/perf USE_SOURCE_PERMISSIONS)
-      install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${ADAPTYST_SCRIPT_PATH}/perf)")
+      file(WRITE ${CMAKE_BINARY_DIR}/${adaptyst_config_filename} "perf_path=${ADAPTYST_SCRIPT_PATH}/perf")
     endif()
+    install(FILES ${CMAKE_BINARY_DIR}/${adaptyst_config_filename} DESTINATION ${adaptyst_config_destination})
   endif()
 
   # Main Adaptyst setup
