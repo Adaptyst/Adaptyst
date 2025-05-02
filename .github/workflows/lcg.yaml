@@ -1,10 +1,12 @@
 name: linux
 
-# on: [push, pull_request]
-on: [push]
+on:
+  - push:
+      tags:
+        - v**
+  - pull_request
 
 jobs:
-
   default:
     runs-on: ubuntu-latest
     steps:
