@@ -1,6 +1,6 @@
 # Adaptyst
 [![License: GNU GPL v2 only](https://img.shields.io/badge/license-GNU%20GPL%20v2%20only-blue)]()
-[![Version: 0.1.dev](https://img.shields.io/badge/version-0.1.dev-red)]()
+[![Version](https://img.shields.io/github/v/release/adaptyst/adaptyst?include_prereleases&label=version)]()
 
 A comprehensive and architecture-agnostic performance analysis tool (formerly AdaptivePerf).
 
