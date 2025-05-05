@@ -84,8 +84,12 @@ install(TARGETS adaptyst-server RUNTIME)
 if(NOT SERVER_ONLY)
   # Patched "perf" setup
   if(PERF)
+    get_filename_component(ADAPTYST_CONFIG_FILENAME ${ADAPTYST_CONFIG_PATH} NAME)
+    get_filename_component(ADAPTYST_CONFIG_DESTINATION ${ADAPTYST_CONFIG_PATH} DIRECTORY)
+
     if(PERF_DIR)
-      install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${PERF_DIR})")
+      install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${PERF_DIR} ${CMAKE_BINARY_DIR}/${ADAPTYST_CONFIG_FILENAME})")
+      install(FILES ${CMAKE_BINARY_DIR}/${ADAPTYST_CONFIG_FILENAME} DESTINATION ${ADAPTYST_CONFIG_DESTINATION})
     else()
       include(ExternalProject)
 
@@ -110,7 +114,8 @@ if(NOT SERVER_ONLY)
       endif()
 
       install(DIRECTORY ${CMAKE_BINARY_DIR}/perf-install/ DESTINATION ${ADAPTYST_SCRIPT_PATH}/perf USE_SOURCE_PERMISSIONS)
-      install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${ADAPTYST_SCRIPT_PATH}/perf)")
+      install(CODE "execute_process(COMMAND ${CMAKE_SOURCE_DIR}/config_setup.sh ${ADAPTYST_CONFIG_PATH} ${ADAPTYST_SCRIPT_PATH}/perf ${CMAKE_BINARY_DIR}/${ADAPTYST_CONFIG_FILENAME})")
+      install(FILES ${CMAKE_BINARY_DIR}/${ADAPTYST_CONFIG_FILENAME} DESTINATION ${ADAPTYST_CONFIG_DESTINATION})
     endif()
   endif()
 
