@@ -18,6 +18,7 @@ namespace adaptyst {
 
     this->command = command;
     this->stdout_redirect = false;
+    this->stdout_terminal = false;
     this->stderr_redirect = false;
     this->notifiable = false;
     this->started = false;
