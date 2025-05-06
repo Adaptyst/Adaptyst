@@ -145,7 +145,7 @@ namespace adaptyst {
                      "syscalls:sys_exit_execve,syscalls:sys_exit_execveat,"
                      "sched:sched_process_fork,sched:sched_process_exit",
                      "--sorted-stream", "--pid=" + std::to_string(pid)};
-      argv_script = {this->perf_bin_path.string(), "script", "-s",
+      argv_script = {this->perf_bin_path.string(), "script", "-i", "-", "-s",
                      script_path + "/adaptyst-syscall-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
@@ -162,7 +162,7 @@ namespace adaptyst {
                      "--buffer-events", this->perf_event.options[2],
                      "--buffer-off-cpu-events", this->perf_event.options[3],
                      "--pid=" + std::to_string(pid)};
-      argv_script = {this->perf_bin_path.string(), "script", "-s",
+      argv_script = {this->perf_bin_path.string(), "script", "-i", "-", "-s",
                      script_path + "/adaptyst-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};
@@ -177,7 +177,7 @@ namespace adaptyst {
                      this->perf_event.name + "/period=" + this->perf_event.options[0] + "/",
                      "--buffer-events", this->perf_event.options[1],
                      "--pid=" + std::to_string(pid)};
-      argv_script = {this->perf_bin_path.string(), "script", "-s",
+      argv_script = {this->perf_bin_path.string(), "script", "-i", "-", "-s",
                      script_path + "/adaptyst-process.py",
                      "--demangle", "--demangle-kernel",
                      "--max-stack=" + std::to_string(this->max_stack)};

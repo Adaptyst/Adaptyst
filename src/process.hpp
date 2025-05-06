@@ -36,6 +36,8 @@ namespace adaptyst {
     bool started;
     int id;
 
+    inline void close_fd(int fd);
+
   public:
     static const int ERROR_START_PROFILE = 200;
     static const int ERROR_STDOUT = 201;
