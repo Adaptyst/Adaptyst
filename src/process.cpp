@@ -64,11 +64,17 @@ namespace adaptyst {
       }
 
       if (this->notifiable) {
-        close(this->notify_pipe[1]);
+        close_fd(this->notify_pipe[1]);
       }
 
       waitpid(this->id, nullptr, 0);
 #endif
+    }
+  }
+
+  inline void Process::close_fd(int fd) {
+    if (fd != -1) {
+      close(fd);
     }
   }
 
@@ -134,8 +140,8 @@ namespace adaptyst {
     if (!this->stdout_redirect) {
       if (pipe(this->stdout_pipe) == -1) {
         if (this->notifiable) {
-          close(this->notify_pipe[0]);
-          close(this->notify_pipe[1]);
+          close_fd(this->notify_pipe[0]);
+          close_fd(this->notify_pipe[1]);
           this->notifiable = false;
         }
 
@@ -149,14 +155,14 @@ namespace adaptyst {
 
     if (pipe(this->stdin_pipe) == -1) {
       if (this->notifiable) {
-        close(this->notify_pipe[0]);
-        close(this->notify_pipe[1]);
+        close_fd(this->notify_pipe[0]);
+        close_fd(this->notify_pipe[1]);
         this->notifiable = false;
       }
 
       if (!this->stdout_redirect) {
-        close(this->stdout_pipe[0]);
-        close(this->stdout_pipe[1]);
+        close_fd(this->stdout_pipe[0]);
+        close_fd(this->stdout_pipe[1]);
       }
 
       throw Process::StartException();
@@ -175,19 +181,19 @@ namespace adaptyst {
       // copied (NOT shared!)
 
       if (this->notifiable) {
-        close(this->notify_pipe[1]);
+        close_fd(this->notify_pipe[1]);
         char buf;
         int bytes_read = 0;
         int received = ::read(this->notify_pipe[0], &buf, 1);
-        close(this->notify_pipe[0]);
+        close_fd(this->notify_pipe[0]);
 
         if (received <= 0 || buf != 0x03) {
           std::exit(Process::ERROR_START_PROFILE);
         }
       }
 
-      close(this->stdin_pipe[1]);
-      close(this->stdout_pipe[0]);
+      close_fd(this->stdin_pipe[1]);
+      close_fd(this->stdout_pipe[0]);
 
       fs::current_path(working_path);
 
@@ -203,7 +209,7 @@ namespace adaptyst {
           std::exit(Process::ERROR_STDERR_DUP2);
         }
 
-        close(stderr_fd);
+        close_fd(stderr_fd);
       }
 
       if (this->stdout_redirect) {
@@ -225,21 +231,21 @@ namespace adaptyst {
             std::exit(Process::ERROR_STDOUT_DUP2);
           }
 
-          close(stdout_fd);
+          close_fd(stdout_fd);
         }
       } else {
         if (dup2(this->stdout_pipe[1], STDOUT_FILENO) == -1) {
           std::exit(Process::ERROR_STDOUT_DUP2);
         }
 
-        close(this->stdout_pipe[1]);
+        close_fd(this->stdout_pipe[1]);
       }
 
       if (dup2(this->stdin_pipe[0], STDIN_FILENO) == -1) {
         std::exit(Process::ERROR_STDIN_DUP2);
       }
 
-      close(this->stdin_pipe[0]);
+      close_fd(this->stdin_pipe[0]);
 
       char *argv[this->command.size() + 1];
 
@@ -282,20 +288,20 @@ namespace adaptyst {
     }
 
     if (this->notifiable) {
-      close(this->notify_pipe[0]);
+      close_fd(this->notify_pipe[0]);
     }
 
-    close(this->stdin_pipe[0]);
+    close_fd(this->stdin_pipe[0]);
 
     if (this->stdout_redirect && this->stdout_fd != nullptr) {
-      close(*(this->stdout_fd));
+      close_fd(*(this->stdout_fd));
     } else if (!this->stdout_redirect) {
-      close(this->stdout_pipe[1]);
+      close_fd(this->stdout_pipe[1]);
     }
 
     if (forked == -1) {
       if (this->notifiable) {
-        close(this->notify_pipe[1]);
+        close_fd(this->notify_pipe[1]);
         this->notifiable = false;
       }
 
