@@ -2,7 +2,6 @@
 // Copyright (C) CERN. See LICENSE for details.
 
 #include "process.hpp"
-#include <regex>
 #include <boost/algorithm/string.hpp>
 
 #ifdef BOOST_OS_UNIX
@@ -37,17 +36,25 @@ namespace adaptyst {
     char **cur_existing_env_entry = environ;
 
     while (*cur_existing_env_entry != nullptr) {
-      std::smatch match;
-      std::string cur_entry(*cur_existing_env_entry);
+      char *cur_entry = *cur_existing_env_entry;
 
-      if (!std::regex_match(cur_entry,
-                            match,
-                            std::regex("^(.+)\\=(.*)$"))) {
+      int sep_index = -1;
+      for (int i = 0; cur_entry[i]; i++) {
+        if (cur_entry[i] == '=') {
+          sep_index = i;
+          break;
+        }
+      }
+
+      if (sep_index == -1) {
         continue;
       }
 
-      if (this->env.find(match[1]) == this->env.end()) {
-        this->env[match[1]] = match[2];
+      std::string key(cur_entry, sep_index);
+      std::string value(cur_entry + sep_index + 1);
+
+      if (this->env.find(key) == this->env.end()) {
+        this->env[key] = value;
       }
 
       cur_existing_env_entry++;
