@@ -168,7 +168,7 @@ if(NOT SERVER_ONLY)
 
   install(TARGETS adaptyst RUNTIME)
   install(PROGRAMS src/utils/adaptyst-code.py TYPE BIN RENAME adaptyst-code)
-  install(FILES src/scripts/adaptyst-syscall-process.py src/scripts/adaptyst-process.py
+  install(FILES src/scripts/adaptyst-syscall-process.py src/scripts/adaptyst-process.py src/scripts/cxxfilt.py
     DESTINATION ${ADAPTYST_SCRIPT_PATH})
 else()
   find_package(Boost REQUIRED)
