@@ -4,7 +4,7 @@
 #ifndef ARCHIVE_HPP_
 #define ARCHIVE_HPP_
 
-#include "server/socket.hpp"
+#include "adaptyst/socket.hpp"
 #include <filesystem>
 #include <istream>
 #include <archive.h>
