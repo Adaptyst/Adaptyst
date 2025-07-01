@@ -163,7 +163,6 @@ namespace adaptyst {
     std::string directing_node;
     profile_info profiling_info;
     std::unique_ptr<Path> entity_dir;
-    std::unordered_set<hid_t> hdf5_groups;
     unsigned int processing_threads;
     fs::path local_config_path;
     fs::path tmp_dir;

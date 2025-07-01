@@ -8,8 +8,6 @@
 #include <stdbool.h>
 #endif
 
-#include <H5Ipublic.h>
-
 #define ADAPTYST_ERR_MODULE_NOT_FOUND 1
 #define ADAPTYST_ERR_OUT_OF_MEMORY 2
 #define ADAPTYST_ERR_EXCEPTION 3
