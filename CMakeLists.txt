@@ -15,6 +15,7 @@ if(COMMAND cmake_policy)
 endif()
 
 include(FetchContent)
+include(CMakePackageConfigHelpers)
 
 # option(ENABLE_TESTS "Enable Adaptyst automated tests" OFF)
 set(ADAPTYST_MODULE_PATH "/opt/adaptyst" CACHE STRING "Path where Adaptyst modules should be installed into")
@@ -77,6 +78,11 @@ target_include_directories(adaptyst PUBLIC
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
+configure_package_config_file(
+  ${CMAKE_SOURCE_DIR}/adaptyst-config.cmake.in
+  ${CMAKE_BINARY_DIR}/adaptyst-config.cmake
+  INSTALL_DESTINATION lib/cmake/adaptyst)
+
 install(TARGETS adaptyst
   EXPORT adaptyst-targets
   LIBRARY
@@ -88,6 +94,10 @@ install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/adaptyst
 install(EXPORT adaptyst-targets
   FILE adaptyst-targets.cmake
   NAMESPACE adaptyst::
+  DESTINATION lib/cmake/adaptyst)
+
+install(FILES
+  ${CMAKE_BINARY_DIR}/adaptyst-config.cmake
   DESTINATION lib/cmake/adaptyst)
 
 # Main Adaptyst setup
