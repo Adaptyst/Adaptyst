@@ -18,7 +18,7 @@ include(FetchContent)
 include(CMakePackageConfigHelpers)
 
 # option(ENABLE_TESTS "Enable Adaptyst automated tests" OFF)
-set(ADAPTYST_MODULE_PATH "/opt/adaptyst" CACHE STRING "Path where Adaptyst modules should be installed into")
+set(ADAPTYST_MODULE_PATH "/opt/adaptyst/modules" CACHE STRING "Path where Adaptyst modules should be installed into")
 set(ADAPTYST_CONFIG_PATH "/etc/adaptyst.conf" CACHE STRING "Path where Adaptyst config file should be stored in")
 
 project(adaptyst

@@ -430,7 +430,7 @@ namespace adaptyst {
     this->entity = entity;
     this->backend = backend;
 
-    fs::path lib_path = library_path / ("lib" + backend + ".so");
+    fs::path lib_path = library_path / backend / ("lib" + backend + ".so");
 
     this->backend_handle = dlopen(lib_path.c_str(), RTLD_LAZY);
 
