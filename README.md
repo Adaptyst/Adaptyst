@@ -14,6 +14,8 @@ Copyright (C) CERN.
 
 The project is distributed under the GNU GPL v2 license. See LICENSE for details. **Only version 2 of GNU GPL can be used!**
 
+**A new modular version of Adaptyst is coming soon! It will have a different (still open-source and GPL-based) licensing arrangement than the current one.**
+
 ## Installation and documentation
 The installation instructions can be found at the Adaptyst website [here](https://adaptyst.web.cern.ch/install). Similarly, the user documentation can be found [here](https://adaptyst.web.cern.ch/docs/intro/welcome) along with pointers to the Doxygen documentation.
 
