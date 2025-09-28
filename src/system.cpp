@@ -8,15 +8,16 @@
 #include <pybind11/embed.h>
 
 // The code segment below is for the C hardware module API.
-inline adaptyst::Node *get(amod_t id) {
-  if (adaptyst::Node::all_nodes.find(id) == adaptyst::Node::all_nodes.end()) {
+inline adaptyst::Module *get(amod_t id) {
+  if (adaptyst::Module::all_modules.find(id) ==
+      adaptyst::Module::all_modules.end()) {
     return nullptr;
   }
 
-  return adaptyst::Node::all_nodes[id];
+  return adaptyst::Module::all_modules[id];
 }
 
-inline void set_error(amod_t id, int code) {
+inline void set_error(adaptyst::Module *module, int code) {
   std::string msg;
 
   switch (code) {
@@ -27,57 +28,42 @@ inline void set_error(amod_t id, int code) {
   case ADAPTYST_ERR_OUT_OF_MEMORY:
     msg = "Out of memory";
     break;
+
+  case ADAPTYST_ERR_EXCEPTION:
+    msg = "Exception has occurred";
+    break;
+
+  case ADAPTYST_ERR_TERMINAL_NOT_INITIALISED:
+    msg = "Terminal-related resources in Adaptyst haven't "
+      "been initialised yet";
+    break;
+
+  case ADAPTYST_ERR_LOG_DIR_CREATE:
+    msg = "Log directories couldn't be created";
+    break;
+
+  case ADAPTYST_ERR_INIT_ONLY:
+    msg = "This API method can be called only inside "
+      "adaptyst_module_init()";
+    break;
   }
 
-  adaptyst::Node::internal_error_msgs[id] = msg;
-  adaptyst::Node::internal_error_codes[id] = code;
+  module->set_api_error(msg, code);
 }
 
-inline void set_error(amod_t id, std::string msg, int code) {
-  adaptyst::Node::internal_error_msgs[id] = msg;
-  adaptyst::Node::internal_error_codes[id] = code;
+inline void set_error(adaptyst::Module *module, std::string msg, int code) {
+  module->set_api_error(msg, code);
 }
 
 extern "C" {
-  bool adaptyst_new_context(amod_t id, unsigned int size) {
-    auto node = get(id);
-
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
-      return false;
-    }
-
-    void *context = malloc(size);
-
-    if (!context) {
-      set_error(id, ADAPTYST_ERR_OUT_OF_MEMORY);
-      return false;
-    }
-
-    node->set_context(context);
-    return true;
-  }
-
-  void *adaptyst_get_context(amod_t id) {
-    auto node = get(id);
-
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
-      return NULL;
-    }
-
-    return node->get_context();
-  }
-
   option *adaptyst_get_option(amod_t id, const char *key) {
-    auto node = get(id);
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return NULL;
     }
 
-    auto &options = node->get_options();
+    auto &options = mod->get_options();
     std::string key_str(key);
 
     if (options.find(key_str) == options.end()) {
@@ -88,55 +74,72 @@ extern "C" {
   }
 
   bool adaptyst_set_error(amod_t id, const char *msg) {
-    auto node = get(id);
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return false;
     }
 
-    node->set_error(std::string(msg));
+    mod->set_error(std::string(msg));
     return true;
   }
 
   const char *adaptyst_get_log_dir(amod_t id) {
-    if (!adaptyst::Terminal::instance) {
-      set_error(id, ADAPTYST_ERR_TERMINAL_NOT_INITIALISED);
+    auto mod = get(id);
+
+    if (!mod) {
       return NULL;
     }
 
-    return adaptyst::Terminal::instance->get_log_dir();
+    if (!adaptyst::Terminal::instance) {
+      set_error(mod, ADAPTYST_ERR_TERMINAL_NOT_INITIALISED);
+      return NULL;
+    }
+
+    std::filesystem::path &path =
+      mod->get_path(adaptyst::Terminal::instance->get_log_dir());
+
+    try {
+      if (!std::filesystem::exists(path) &&
+          !std::filesystem::create_directories(path)) {
+        set_error(mod, ADAPTYST_ERR_LOG_DIR_CREATE);
+        return NULL;
+      }
+    } catch (std::exception &e) {
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      return NULL;
+    }
+
+    return path.c_str();
   }
 
-  const char *adaptyst_get_node_id(amod_t id) {
-    auto node = get(id);
+  const char *adaptyst_get_node_name(amod_t id) {
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return NULL;
     }
 
-    return node->get_id_c_str();
+    return mod->get_node_name().c_str();
   }
 
   bool adaptyst_log(amod_t id, const char *msg, const char *type) {
-    if (!adaptyst::Terminal::instance) {
-      set_error(id, ADAPTYST_ERR_TERMINAL_NOT_INITIALISED);
+    auto mod = get(id);
+
+    if (!mod) {
       return false;
     }
 
-    auto node = get(id);
-
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!adaptyst::Terminal::instance) {
+      set_error(mod, ADAPTYST_ERR_TERMINAL_NOT_INITIALISED);
       return false;
     }
 
     try {
-      adaptyst::Terminal::instance->log(std::string(msg), node,
+      adaptyst::Terminal::instance->log(std::string(msg), mod,
                                         std::string(type));
     } catch (std::exception &e) {
-      set_error(id, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
       return false;
     }
 
@@ -145,91 +148,95 @@ extern "C" {
 
   bool adaptyst_print(amod_t id, const char *msg, bool sub, bool error,
                       const char *type) {
-    if (!adaptyst::Terminal::instance) {
+    auto mod = get(id);
+
+    if (!mod) {
       return false;
     }
 
-    auto node = get(id);
-
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!adaptyst::Terminal::instance) {
+      set_error(mod, ADAPTYST_ERR_TERMINAL_NOT_INITIALISED);
       return false;
     }
 
     try {
-      adaptyst::Terminal::instance->print(std::string(msg), sub, error, node,
+      adaptyst::Terminal::instance->print(std::string(msg), sub, error, mod,
                                           std::string(type));
     } catch (std::exception &e) {
-      set_error(id, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
       return false;
     }
 
     return true;
   }
 
-  const char *adaptyst_get_node_dir(amod_t id) {
-    auto node = get(id);
+  const char *adaptyst_get_module_dir(amod_t id) {
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return NULL;
     }
 
     try {
-      return node->get_node_dir()->get_path_name();
+      return mod->get_dir()->get_path_name();
     } catch (std::exception &e) {
-      set_error(id, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
       return NULL;
     }
   }
 
   profile_info *adaptyst_get_profile_info(amod_t id) {
-    auto node = get(id);
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return NULL;
     }
 
-    auto &profile_info = node->get_entity()->get_profile_info();
+    if (!mod->get_will_profile()) {
+      return NULL;
+    }
+
+    auto &profile_info = mod->get_profile_info();
     return &profile_info;
   }
 
   bool adaptyst_set_profile_info(amod_t id, profile_info *info) {
-    auto node = get(id);
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return false;
     }
 
-    node->get_entity()->set_profile_info(*info);
+    if (!mod->is_initialising()) {
+      set_error(mod, ADAPTYST_ERR_INIT_ONLY);
+      return false;
+    }
+
+    mod->set_profile_info(*info);
     return true;
   }
 
   bool adaptyst_is_directing_node(amod_t id) {
-    auto node = get(id);
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return false;
     }
 
-    return node->get_entity()->get_directing_node() == node->get_id();
+    return mod->is_directing_node();
   }
 
   bool adaptyst_profile_notify(amod_t id) {
-    auto node = get(id);
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return false;
     }
 
     try {
-      node->get_entity()->profile_notify();
+      mod->profile_notify();
     } catch (std::exception &e) {
-      set_error(id, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
       return false;
     }
 
@@ -237,166 +244,148 @@ extern "C" {
   }
 
   int adaptyst_profile_wait(amod_t id) {
-    auto node = get(id);
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return -1;
     }
 
     try {
-      return node->get_entity()->profile_wait();
+      return mod->profile_wait();
     } catch (std::exception &e) {
-      set_error(id, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
       return -1;
     }
   }
 
   bool adaptyst_process_src_paths(amod_t id, const char **paths, int n) {
-    auto node = get(id);
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return false;
     }
 
     for (int i = 0; i < n; i++) {
-      node->get_entity()->add_src_code_path(paths[i]);
+      mod->add_src_code_path(paths[i]);
     }
 
     return true;
   }
 
   const char *adaptyst_get_cpu_mask(amod_t id) {
-    auto node = get(id);
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
+      return NULL;
+    }
+
+    if (!mod->is_initialising()) {
+      set_error(mod, ADAPTYST_ERR_INIT_ONLY);
       return NULL;
     }
 
     try {
-      return node->get_entity()->get_cpu_mask();
+      return mod->get_cpu_mask();
     } catch (std::exception &e) {
-      set_error(id, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
       return NULL;
     }
   }
 
   const char *adaptyst_get_tmp_dir(amod_t id) {
-    auto node = get(id);
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return NULL;
     }
 
     try {
-      return node->get_entity()->get_tmp_dir().c_str();
+      return mod->get_tmp_dir().c_str();
     } catch (std::exception &e) {
-      set_error(id, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
       return NULL;
     }
   }
 
   const char *adaptyst_get_local_config_dir(amod_t id) {
-    auto node = get(id);
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return NULL;
     }
 
     try {
-      return node->get_entity()->get_local_config_dir().c_str();
+      return mod->get_local_config_dir().c_str();
     } catch (std::exception &e) {
-      set_error(id, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
       return NULL;
     }
   }
 
   bool adaptyst_set_will_profile(amod_t id, bool will_profile) {
-    auto node = get(id);
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return false;
     }
 
-    node->set_will_profile(will_profile);
+    if (!mod->is_initialising()) {
+      set_error(mod, ADAPTYST_ERR_INIT_ONLY);
+      return false;
+    }
+
+    mod->set_will_profile(will_profile);
     return true;
   }
 
   bool adaptyst_has_in_tag(amod_t id, const char *tag) {
-    auto node = get(id);
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return false;
     }
 
     try {
-      return node->has_in_tag(std::string(tag));
+      return mod->has_in_tag(std::string(tag));
     } catch (std::exception &e) {
-      set_error(id, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
       return false;
     }
   }
 
   bool adaptyst_has_out_tag(amod_t id, const char *tag) {
-    auto node = get(id);
+    auto mod = get(id);
 
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
+    if (!mod) {
       return false;
     }
 
     try {
-      return node->has_out_tag(std::string(tag));
+      return mod->has_out_tag(std::string(tag));
     } catch (std::exception &e) {
-      set_error(id, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
       return false;
     }
   }
 
-  const char ***adaptyst_get_in_tags(amod_t id) {
-    auto node = get(id);
-
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
-      return NULL;
-    }
-
-    // TODO
-  }
-
-  const char ***adaptyst_get_out_tags(amod_t id) {
-    auto node = get(id);
-
-    if (!node) {
-      set_error(id, ADAPTYST_ERR_MODULE_NOT_FOUND);
-      return NULL;
-    }
-
-    // TODO
-  }
-
   const char *adaptyst_get_internal_error_msg(amod_t id) {
-    if (adaptyst::Node::internal_error_msgs.find(id) ==
-        adaptyst::Node::internal_error_msgs.end()) {
-      return NULL;
+    auto mod = get(id);
+
+    if (!mod) {
+      return "Module not found";
     }
 
-    return adaptyst::Node::internal_error_msgs[id].c_str();
+    return mod->get_api_error_msg().c_str();
   }
 
   int adaptyst_get_internal_error_code(amod_t id) {
-    if (adaptyst::Node::internal_error_codes.find(id) ==
-        adaptyst::Node::internal_error_codes.end()) {
-      return 0;
+    auto mod = get(id);
+
+    if (!mod) {
+      return ADAPTYST_ERR_MODULE_NOT_FOUND;
     }
 
-    return adaptyst::Node::internal_error_codes[id];
+    return mod->get_api_error_code();
   }
 }
 // The C hardware module API code segment ends here.
@@ -404,55 +393,40 @@ extern "C" {
 namespace adaptyst {
   namespace py = pybind11;
 
-  std::unordered_map<amod_t, Node *> Node::all_nodes;
-  amod_t Node::next_node_id = 1;
-  std::unordered_map<amod_t, std::string> Node::internal_error_msgs;
-  std::unordered_map<amod_t, int> Node::internal_error_codes;
+  std::unordered_map<amod_t, Module *> Module::all_modules;
+  amod_t Module::next_module_id = 1;
 
-  Identifiable::Identifiable(std::string id) {
-    this->id = id;
-  }
+  Module::Module(
+      std::string backend_name, std::unordered_map<std::string, std::string> &options,
+      std::unordered_map<std::string, std::vector<std::string>> &array_options,
+      fs::path library_path, bool never_directing)
+    : Identifiable(backend_name) {
+    this->api_error_code = ADAPTYST_OK;
+    this->api_error_msg = "OK, no errors";
 
-  std::string Identifiable::get_id() {
-    return this->id;
-  }
+    fs::path lib_path = library_path / backend_name / ("lib" + backend_name + ".so");
 
-  const char *Identifiable::get_id_c_str() {
-    return this->id.c_str();
-  }
+    this->handle = dlopen(lib_path.c_str(), RTLD_LAZY);
 
-  Node::Node(std::string id,
-             std::string backend,
-             std::unordered_map<std::string, std::string> &options,
-             std::unordered_map<std::string, std::vector<std::string> > &array_options,
-             std::shared_ptr<Entity> &entity,
-             fs::path library_path) : Identifiable(id) {
-    this->entity = entity;
-    this->backend = backend;
-
-    fs::path lib_path = library_path / backend / ("lib" + backend + ".so");
-
-    this->backend_handle = dlopen(lib_path.c_str(), RTLD_LAZY);
-
-    if (!this->backend_handle) {
-      this->throw_error("Could not load backend \"" + backend +
+    if (!this->handle) {
+      this->throw_error("Could not load module \"" + backend_name +
                         "\"! " + std::string(dlerror()));
     }
 
-    const char **tags = (const char **)dlsym(this->backend_handle, "tags");
+    const char **tags = (const char **)dlsym(this->handle, "tags");
 
     if (!tags) {
-      this->throw_error("Backend \"" + backend + "\" doesn't define its tags!");
+      this->throw_error("Module \"" + backend_name + "\" doesn't define its tags!");
     }
 
     for (int i = 0; tags[i]; i++) {
       this->tags.insert(std::string(tags[i]));
     }
 
-    const char **backend_options = (const char **)dlsym(this->backend_handle, "options");
+    const char **backend_options = (const char **)dlsym(this->handle, "options");
 
     if (!backend_options) {
-      this->throw_error("Backend \"" + backend + "\" doesn't define "
+      this->throw_error("Module \"" + backend_name + "\" doesn't define "
                         "what options are available!");
     }
 
@@ -460,17 +434,17 @@ namespace adaptyst {
       std::string name(backend_options[i]);
       OptionMetadata metadata;
 
-      const char **help = (const char **)dlsym(this->backend_handle,
+      const char **help = (const char **)dlsym(this->handle,
                                              (name + "_help").c_str());
 
       if (!help) {
-        this->throw_error("Backend \"" + backend + "\" doesn't define any "
+        this->throw_error("Module \"" + backend_name + "\" doesn't define any "
                           "help message for option \"" + name + "\"!");
       }
 
       metadata.help = std::string(*help);
 
-      option_type *type = (option_type *)dlsym(this->backend_handle,
+      option_type *type = (option_type *)dlsym(this->handle,
                                                (name + "_type").c_str());
 
       if (type) {
@@ -479,7 +453,7 @@ namespace adaptyst {
         metadata.type = NONE;
       }
 
-      option_type *array_type = (option_type *)dlsym(this->backend_handle,
+      option_type *array_type = (option_type *)dlsym(this->handle,
                                                      (name + "_array_type").c_str());
 
       if (array_type) {
@@ -489,17 +463,17 @@ namespace adaptyst {
       }
 
       if (!type && !array_type) {
-        this->throw_error("Backend \"" + backend + "\" doesn't define any "
+        this->throw_error("Module \"" + backend_name + "\" doesn't define any "
                           "type for option \"" + name + "\"!");
       }
 
-      metadata.default_value = dlsym(this->backend_handle,
+      metadata.default_value = dlsym(this->handle,
                                      (name + "_default").c_str());
-      metadata.default_array_value = dlsym(this->backend_handle,
+      metadata.default_array_value = dlsym(this->handle,
                                            (name + "_array_default").c_str());
 
       unsigned int *default_array_value_size =
-        (unsigned int *)dlsym(this->backend_handle,
+        (unsigned int *)dlsym(this->handle,
                               (name + "_array_default_size").c_str());
 
       if (default_array_value_size) {
@@ -520,7 +494,7 @@ namespace adaptyst {
                                        metadata.default_array_value,
                                        metadata.default_array_value_size);
         } else {
-          this->throw_error("Backend \"" + backend +
+          this->throw_error("Module \"" + backend_name +
                             "\" requires option "
                             "\"" +
                             name + "\" to be set!");
@@ -688,7 +662,7 @@ namespace adaptyst {
     }
 
     const char **log_types =
-      (const char **)dlsym(this->backend_handle, "log_types");
+      (const char **)dlsym(this->handle, "log_types");
 
     if (log_types) {
       for (int i = 0; log_types[i]; i++) {
@@ -698,47 +672,51 @@ namespace adaptyst {
       this->log_types = {"General"};
     }
 
-    this->module_id = Node::next_node_id++;
-    Node::all_nodes[this->module_id] = this;
+    this->never_directing = never_directing;
+    this->id = Module::next_module_id++;
+    this->node = nullptr;
+    this->initialising = false;
+
+    Module::all_modules[this->id] = this;
   }
 
-  Node::~Node() {
+  Module::~Module() {
     for (auto &allocated : this->malloced) {
       free(allocated);
     }
 
-    dlclose(this->backend_handle);
+    dlclose(this->handle);
   }
 
-  std::shared_ptr<Entity> &Node::get_entity() {
-    return this->entity;
-  }
+  bool Module::init() {
+    this->initialising = true;
 
-  bool Node::init() {
     bool (*init_func)(amod_t) =
-      (bool (*)(amod_t))dlsym(this->backend_handle, "_adaptyst_module_init");
+      (bool (*)(amod_t))dlsym(this->handle, "_adaptyst_module_init");
 
     if (!init_func) {
-      this->throw_error("Backend \"" + this->backend + "\" doesn't define _adaptyst_module_init()! "
+      this->throw_error("Module \"" + this->get_name() + "\" doesn't define _adaptyst_module_init()! "
                         "Has it been compiled correctly?");
     }
 
-    bool result = init_func(this->module_id);
+    bool result = init_func(this->id);
 
-    if (!result && !this->error.empty()) {
+    if (result) {
+      this->initialised = true;
+    } else if (!this->error.empty()) {
       this->throw_error(this->error);
     }
 
+    this->initialising = false;
     return result;
   }
 
-
-  void Node::process(std::string &sdfg) {
-    bool (*process_func)(const char *) = (bool (*)(const char *))dlsym(this->backend_handle,
+  void Module::process(std::string sdfg) {
+    bool (*process_func)(const char *) = (bool (*)(const char *))dlsym(this->handle,
                                                                        "adaptyst_module_process");
 
     if (!process_func) {
-      this->throw_error("Backend \"" + this->backend + "\" doesn't define adaptyst_module_process()! "
+      this->throw_error("Module \"" + this->get_name() + "\" doesn't define adaptyst_module_process()! "
                         "Has it been compiled correctly?");
     }
 
@@ -747,7 +725,7 @@ namespace adaptyst {
     });
   }
 
-  bool Node::wait() {
+  bool Module::wait() {
     bool result = this->process_future.get();
 
     if (!result && !this->error.empty()) {
@@ -757,87 +735,270 @@ namespace adaptyst {
     return result;
   }
 
-  void Node::close() {
-    void (*close)() = (void (*)())dlsym(this->backend_handle,
+  void Module::close() {
+    if (!this->initialised) {
+      return;
+    }
+
+    void (*close)() = (void (*)())dlsym(this->handle,
                                         "adaptyst_module_close");
 
     if (!close) {
-      this->throw_error("Backend \"" + this->backend + "\" doesn't define adaptyst_module_close()! "
+      this->throw_error("Module \"" + this->get_name() + "\" doesn't define adaptyst_module_close()! "
                         "Has it been compiled correctly?");
     }
 
     close();
   }
 
-  void Node::set_will_profile(bool will_profile) {
+  void Module::set_will_profile(bool will_profile) {
     this->will_profile = will_profile;
+
+    if (will_profile) {
+      this->node->set_will_profile(will_profile);
+    }
   }
 
-  bool Node::get_will_profile() {
+  bool Module::get_will_profile() {
     return this->will_profile;
   }
 
-  void Node::set_error(std::string error) {
+  void Module::set_error(std::string error) {
     this->error = error;
   }
 
-  void Node::set_context(void *context) {
-    this->context = context;
-  }
-
-  void *Node::get_context() {
-    return this->context;
-  }
-
-  std::unordered_map<std::string, option> &Node::get_options() {
+  std::unordered_map<std::string, option> &Module::get_options() {
     return this->options;
   }
 
-  std::unique_ptr<Path> &Node::get_node_dir() {
-    return this->node_dir;
+  std::unique_ptr<Path> &Module::get_dir() {
+    return this->dir;
+  }
+
+  std::unordered_set<std::string> &Module::get_tags() {
+    return this->tags;
+  }
+
+  std::unordered_map<std::string, Module::OptionMetadata> &Module::get_all_options() {
+    return this->option_metadata;
+  }
+
+  void Module::set_dir(fs::path dir) {
+    this->dir = std::make_unique<Path>(dir);
+  }
+
+  void Module::profile_notify() {
+    this->node->profile_notify();
+  }
+
+  int Module::profile_wait() {
+    return this->node->profile_wait();
+  }
+
+  std::string &Module::get_node_name() {
+    return this->node->get_name();
+  }
+
+  std::vector<std::string> Module::get_log_types() {
+    return this->log_types;
+  }
+
+  std::string Module::get_type() {
+    return "Module";
+  }
+
+  void Module::set_node(Node *node) {
+    this->node = node;
+  }
+
+  void Module::set_api_error(std::string msg, int code) {
+    this->api_error_msg = msg;
+    this->api_error_code = code;
+  }
+
+  std::string &Module::get_api_error_msg() {
+    return this->api_error_msg;
+  }
+
+  int Module::get_api_error_code() {
+    return this->api_error_code;
+  }
+
+  bool Module::is_directing_node() {
+    return !this->never_directing &&
+      this->node->is_directing();
+  }
+
+  void Module::add_src_code_path(fs::path path) {
+    this->src_code_paths.insert(path);
+  }
+
+  fs::path &Module::get_tmp_dir() {
+    return this->node->get_tmp_dir();
+  }
+
+  fs::path &Module::get_local_config_dir() {
+    return this->node->get_local_config_dir();
+  }
+
+  bool Module::has_in_tag(std::string tag) {
+    return this->node->has_in_tag(tag);
+  }
+
+  bool Module::has_out_tag(std::string tag) {
+    return this->node->has_out_tag(tag);
+  }
+
+  profile_info &Module::get_profile_info() {
+    return this->node->get_profile_info();
+  }
+
+  void Module::set_profile_info(profile_info info) {
+    this->node->set_profile_info(info);
+  }
+
+  bool Module::is_initialising() {
+    return this->initialising;
+  }
+
+  const char *Module::get_cpu_mask() {
+    return this->node->get_cpu_mask();
+  }
+
+  std::unordered_set<fs::path> &Module::get_src_code_paths() {
+    return this->src_code_paths;
+  }
+
+  Node::Node(std::string name,
+             std::shared_ptr<Entity> &entity) : Identifiable(name) {
+    this->entity = entity;
+  }
+
+  bool Node::init() {
+    for (auto &mod : this->modules) {
+      if (!mod->init()) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  void Node::process(std::string &sdfg) {
+    for (auto &mod : this->modules) {
+      mod->process(sdfg);
+    }
+  }
+
+  bool Node::wait() {
+    bool success = true;
+    for (auto &mod : this->modules) {
+      if (!mod->wait()) {
+        success = false;
+      }
+    }
+
+    return success;
+  }
+
+  void Node::close() {
+    for (auto &mod : this->modules) {
+      mod->close();
+    }
   }
 
   std::unordered_set<std::string> &Node::get_tags() {
     return this->tags;
   }
 
-  std::unordered_map<std::string, Node::OptionMetadata> &Node::get_all_options() {
-    return this->option_metadata;
-  }
-
-  void Node::set_node_dir(fs::path &node_dir) {
-    this->node_dir = std::make_unique<Path>(node_dir);
-  }
-
   void Node::profile_notify() {
-    // TODO
+    this->entity->profile_notify();
   }
 
   int Node::profile_wait() {
-    // TODO
-    return 0;
+    return this->entity->profile_wait();
   }
 
   void Node::add_in_tags(std::unordered_set<std::string> &tags) {
-    // TODO
+    for (auto &tag : tags) {
+      this->in_tags.insert(tag);
+    }
   }
 
   void Node::add_out_tags(std::unordered_set<std::string> &tags) {
-    // TODO
+    for (auto &tag : tags) {
+      this->out_tags.insert(tag);
+    }
   }
 
   bool Node::has_in_tag(std::string tag) {
-    // TODO
-    return false;
+    return this->in_tags.contains(tag);
   }
 
   bool Node::has_out_tag(std::string tag) {
-    // TODO
-    return false;
+    return this->out_tags.contains(tag);
+  }
+
+  void Node::add_module(std::unique_ptr<Module> &mod) {
+    mod->set_parent(this);
+    mod->set_node(this);
+    this->modules.push_back(std::move(mod));
+  }
+
+  bool Node::get_will_profile() {
+    return this->will_profile;
+  }
+
+  void Node::set_will_profile(bool will_profile) {
+    this->will_profile = will_profile;
+  }
+
+  void Node::set_dir(fs::path path) {
+    this->dir = std::make_unique<Path>(path);
+
+    for (auto &mod : this->modules) {
+      mod->set_dir(path / mod->get_name());
+    }
+  }
+
+  bool Node::is_directing() {
+    return this->entity->get_directing_node() == this->get_name();
+  }
+
+  profile_info &Node::get_profile_info() {
+    return this->entity->get_profile_info();
+  }
+
+  void Node::set_profile_info(profile_info info) {
+    this->entity->set_profile_info(info);
+  }
+
+  const char *Node::get_cpu_mask() {
+    return this->entity->get_cpu_mask();
+  }
+
+  fs::path &Node::get_tmp_dir() {
+    return this->entity->get_tmp_dir();
+  }
+
+  fs::path &Node::get_local_config_dir() {
+    return this->entity->get_local_config_dir();
+  }
+
+  std::unordered_set<fs::path> Node::get_src_code_paths() {
+    std::unordered_set<fs::path> paths;
+
+    for (auto &module : this->modules) {
+      for (auto &path : module->get_src_code_paths()) {
+        paths.insert(path);
+      }
+    }
+
+    return paths;
   }
 
   std::vector<std::string> Node::get_log_types() {
-    return this->log_types;
+    return {};
   }
 
   std::string Node::get_type() {
@@ -875,10 +1036,12 @@ namespace adaptyst {
     this->processing_threads = processing_threads;
     this->local_config_path = local_config_path;
     this->tmp_dir = tmp_dir;
+    this->src_code_paths_collected = false;
   }
 
   void Entity::add_node(std::shared_ptr<Node> &node) {
-    this->nodes[node->get_id()] = node;
+    node->set_parent(this);
+    this->nodes[node->get_name()] = node;
   }
 
   void Entity::add_connection(std::string id,
@@ -983,9 +1146,9 @@ namespace adaptyst {
       });
 
       fs::path stdout_path =
-        fs::path(Terminal::instance->get_log_dir()) / (this->get_id() + "_stdout.log");
+        fs::path(Terminal::instance->get_log_dir()) / (this->get_name() + "_stdout.log");
       fs::path stderr_path =
-        fs::path(Terminal::instance->get_log_dir()) / (this->get_id() + "_stderr.log");
+        fs::path(Terminal::instance->get_log_dir()) / (this->get_name() + "_stderr.log");
 
       this->profiled_process->set_redirect_stdout(stdout_path);
       this->profiled_process->set_redirect_stderr(stderr_path);
@@ -1009,12 +1172,16 @@ namespace adaptyst {
       Archive archive(fs::path(this->entity_dir->get_path_name()) / "src.zip");
       nlohmann::json src_mapping = nlohmann::json::object();
 
-      for (auto &path : this->src_code_paths) {
-        if (fs::exists(path)) {
-          std::string filename =
-            std::to_string(src_mapping.size()) + path.extension().string();
-          src_mapping[path.string()] = filename;
-          archive.add_file(filename, path);
+      for (auto &node_elem : this->nodes) {
+        for (auto &path : node_elem.second->get_src_code_paths()) {
+          if (!src_mapping.contains(path.string()) && fs::exists(path)) {
+            std::string filename =
+              std::to_string(src_mapping.size()) + path.extension().string();
+            src_mapping[path.string()] = filename;
+            archive.add_file(filename, path);
+          }
+
+          this->src_code_paths.insert(path);
         }
       }
 
@@ -1023,6 +1190,8 @@ namespace adaptyst {
       s << src_mapping_str;
       archive.add_file_stream("index.json", s, src_mapping_str.length());
       archive.close();
+
+      this->src_code_paths_collected = true;
     }
   }
 
@@ -1037,7 +1206,7 @@ namespace adaptyst {
 
     for (auto node : this->nodes) {
       fs::path node_dir = entity_dir / node.first;
-      node.second->set_node_dir(node_dir);
+      node.second->set_dir(node_dir);
     }
   }
 
@@ -1092,11 +1261,6 @@ namespace adaptyst {
                                   "program unless it is 0.", true, false);
       }
 
-      if (fork() == 0) {
-        char * const a[] = { const_cast<char *>("a"), NULL };
-        execvp("test", a);
-      }
-
       switch (num_proc) {
       case 1:
         Terminal::instance->print("Running analysis along with processing is *NOT* "
@@ -1139,16 +1303,16 @@ namespace adaptyst {
     return this->cpu_mask.c_str();
   }
 
-  fs::path Entity::get_tmp_dir() {
+  fs::path &Entity::get_tmp_dir() {
     return this->tmp_dir;
   }
 
-  fs::path Entity::get_local_config_dir() {
+  fs::path &Entity::get_local_config_dir() {
     return this->local_config_path;
   }
 
-  std::vector<std::shared_ptr<Identifiable>> Entity::get_all_nodes() {
-    std::vector<std::shared_ptr<Identifiable> > result;
+  std::vector<std::shared_ptr<Node>> Entity::get_all_nodes() {
+    std::vector<std::shared_ptr<Node> > result;
 
     for (auto &node : this->nodes) {
       result.push_back(node.second);
@@ -1169,11 +1333,17 @@ namespace adaptyst {
     this->sdfg = sdfg;
   }
 
-  void Entity::add_src_code_path(fs::path path) {
-    this->src_code_paths.insert(path);
-  }
-
   std::unordered_set<fs::path> &Entity::get_src_code_paths() {
+    if (!this->src_code_paths_collected) {
+      for (auto &node_elem : this->nodes) {
+        for (auto &path : node_elem.second->get_src_code_paths()) {
+          this->src_code_paths.insert(path);
+        }
+      }
+
+      this->src_code_paths_collected = true;
+    }
+
     return this->src_code_paths;
   }
 
@@ -1231,17 +1401,17 @@ namespace adaptyst {
                                  "is not a map!");
       }
 
-      if (!options.has_child("access_mode")) {
+      if (!options.has_child("handle_mode")) {
         throw std::runtime_error("\"options\" in \"" + name + "\" in "
                                  "\"entities\" in the system YAML file "
-                                 "does not have \"access_mode\"!");
+                                 "does not have \"handle_mode\"!");
       }
 
 
-      auto access_mode = options["access_mode"];
+      auto access_mode = options["handle_mode"];
 
       if (!access_mode.is_keyval()) {
-        throw std::runtime_error("\"access_mode\" in \"options\" in "
+        throw std::runtime_error("\"handle_mode\" in \"options\" in "
                                  "\"" + name + "\" in \"entities\" "
                                  "in the system YAML file is not of "
                                  "simple key-value type!");
@@ -1273,8 +1443,8 @@ namespace adaptyst {
       std::string access_mode_val(access_mode.val().data(), access_mode.val().len);
       Entity::AccessMode access_mode_final;
 
-      if (access_mode_val == "in_place") {
-        access_mode_final = Entity::IN_PLACE;
+      if (access_mode_val == "local") {
+        access_mode_final = Entity::LOCAL;
       } else if (access_mode_val == "remote") {
         throw std::runtime_error("Remote access to entities is not "
                                  "yet supported! (entity \"" + name + "\")");
@@ -1284,7 +1454,7 @@ namespace adaptyst {
         throw std::runtime_error("Remote access to entities is not "
                                  "yet supported! (entity \"" + name + "\")");
       } else {
-        throw std::runtime_error("\"access_mode\" in \"options\" in "
+        throw std::runtime_error("\"handle_mode\" in \"options\" in "
                                  "\"" + name + "\" in \"entities\" "
                                  "in the system YAML file has an "
                                  "invalid value! " + access_mode_val);
@@ -1318,62 +1488,113 @@ namespace adaptyst {
                                    "is not a map!");
         }
 
-        if (!node.has_child("backend")) {
+        bool directing = false;
+
+        if (node.has_child("directing")) {
+          if (!c4::from_chars(node["directing"].val(), &directing)) {
+            throw std::runtime_error("\"directing\" in node \"" + node_name + "\" in "
+                                     "entity \"" + name + "\" in the system YAML file "
+                                     "is not a valid boolean!");
+          }
+        }
+
+        if (access_mode_final != Entity::CUSTOM &&
+            access_mode_final != Entity::CUSTOM_REMOTE) {
+          directing = false;
+        }
+
+        if (!node.has_child("modules")) {
           throw std::runtime_error("Node \"" + node_name + "\" in entity "
                                    "\"" + name + "\" in the system YAML file "
-                                   "does not have \"backend\"!");
+                                   "does not have \"modules\"!");
         }
 
-        auto backend = node["backend"];
+        auto modules = node["modules"];
 
-        if (!backend.is_keyval()) {
-          throw std::runtime_error("\"backend\" in node \"" + node_name + "\" in "
+        if (!modules.is_seq()) {
+          throw std::runtime_error("\"modules\" in node \"" + node_name + "\" in "
                                    "entity \"" + name + "\" in the system YAML file "
-                                   "is not of simple key-value form!");
-        }
-
-        std::string backend_str(backend.val().data(), backend.val().len);
-
-        std::unordered_map<std::string, std::string> options_map;
-          std::unordered_map<std::string, std::vector<std::string> > array_options_map;
-
-        if (node.has_child("options")) {
-          auto options = node["options"];
-
-          if (!options.is_map()) {
-            throw std::runtime_error("\"options\" in node \"" + node_name + "\" in "
-                                     "entity \"" + name + "\" in the system YAML file "
-                                     "is not a map!");
-          }
-
-          for (auto option : options.children()) {
-            std::string key(option.key().data(), option.key().len);
-
-            if (option.is_keyval()) {
-              options_map[key] = std::string(option.val().data(), option.val().len);
-            } else if (option.is_seq()) {
-              array_options_map[key] = std::vector<std::string>();
-              for (auto element : option.children()) {
-                if (!element.is_val()) {
-                  throw std::runtime_error("Element with index " +
-                                           std::to_string(array_options_map[key].size()) +
-                                           " in option \"" + key + "\" in node \"" +
-                                           node_name + "\" in entity \"" + name + "\" in "
-                                           "the system YAML file is not a simple value!");
-                }
-
-                array_options_map[key].push_back(std::string(element.val().data(), element.val().len));
-              }
-            }
-          }
+                                   "is not of a sequence form!");
         }
 
         std::shared_ptr<Node> node_obj = std::make_shared<Node>(node_name,
-                                                                backend_str,
-                                                                options_map,
-                                                                array_options_map,
-                                                                entity_obj,
-                                                                library_path);
+                                                                entity_obj);
+
+        int index = 0;
+        for (auto mod : modules.children()) {
+          auto module_name = mod["name"];
+
+          if (!module_name.is_keyval()) {
+            throw std::runtime_error("\"name\" in entry " + std::to_string(index) +
+                                     " of \"modules\" in node \"" +
+                                     node_name + "\" in entity \"" + name + "\" in "
+                                     "the system YAML file is not of simple key-value type!");
+          }
+
+          std::string module_name_str(module_name.val().data(), module_name.val().len);
+          bool never_directing = false;
+
+          if (mod.has_child("never_directing")) {
+            if (!c4::from_chars(mod["never_directing"].val(), &never_directing)) {
+              throw std::runtime_error("\"never_directing\" in module \"" + module_name_str +
+                                       "\" in node \"" + node_name + "\" in entity \"" + name +
+                                       "\" in the system YAML file is not a valid boolean!");
+            }
+          }
+
+          if (!directing) {
+            never_directing = false;
+          }
+
+          std::unordered_map<std::string, std::string> options_map;
+          std::unordered_map<std::string, std::vector<std::string> > array_options_map;
+
+          if (node.has_child("options")) {
+            auto options = node["options"];
+
+            if (!options.is_map()) {
+              throw std::runtime_error("\"options\" in module \"" + module_name_str +
+                                       " in node \"" + node_name + "\" in "
+                                       "entity \"" + name + "\" in the system YAML file "
+                                       "is not a map!");
+            }
+
+            for (auto option : options.children()) {
+              std::string key(option.key().data(), option.key().len);
+
+              if (option.is_keyval()) {
+                options_map[key] = std::string(option.val().data(), option.val().len);
+              } else if (option.is_seq()) {
+                array_options_map[key] = std::vector<std::string>();
+
+                for (auto element : option.children()) {
+                  if (!element.is_val()) {
+                    throw std::runtime_error(
+                        "Element with index " +
+                        std::to_string(array_options_map[key].size()) +
+                        " in option \"" + key + "\" in module \"" +
+                        module_name_str + "\" in node \"" + node_name +
+                        "\" in entity \"" + name +
+                        "\" in "
+                        "the system YAML file is not a simple value!");
+                  }
+
+                  array_options_map[key].push_back(
+                      std::string(element.val().data(), element.val().len));
+                }
+              }
+            }
+          }
+
+          std::unique_ptr<Module> mod_obj = std::make_unique<Module>(
+                module_name_str, options_map, array_options_map, library_path,
+                never_directing);
+
+          node_obj->add_module(mod_obj);
+
+          index++;
+        }
+
         entity_obj->add_node(node_obj);
       }
 
@@ -1395,38 +1616,30 @@ namespace adaptyst {
                                      "system YAML file is not a map!");
           }
 
-          if (!edge.has_child("path")) {
+          if (!edge.has_child("from")) {
             throw std::runtime_error("Edge \"" + edge_name + "\" in entity \"" +
                                      name + "\" in the system YAML file does not "
-                                     "have \"path\"!");
+                                     "have \"from\"!");
           }
 
-          auto path = edge["path"];
-
-          if (!path.is_seq()) {
-            throw std::runtime_error("\"path\" in edge \"" + edge_name + "\" in "
-                                     "entity \"" + name + "\" in the system YAML "
-                                     "file is not an array!");
+          if (!edge.has_child("to")) {
+            throw std::runtime_error("Edge \"" + edge_name + "\" in entity \"" +
+                                     name + "\" in the system YAML file does not "
+                                     "have \"to\"!");
           }
 
-          if (path.num_children() != 2) {
-            throw std::runtime_error("\"path\" in edge \"" + edge_name + "\" in "
-                                     "entity \"" + name + "\" in the system YAML "
-                                     "file does not have exactly 2 elements!");
-          }
-
-          auto node1 = path[0];
-          auto node2 = path[1];
+          auto node1 = edge["from"];
+          auto node2 = edge["to"];
 
           if (!node1.is_val()) {
-            throw std::runtime_error("First element in \"path\" in edge \"" +
+            throw std::runtime_error("\"from\" in edge \"" +
                                      edge_name + "\" in entity \"" + name + "\" "
                                      "in the system YAML file is not a simple "
                                      "value!");
           }
 
           if (!node2.is_val()) {
-            throw std::runtime_error("Second element in \"path\" in edge \"" +
+            throw std::runtime_error("\"to\" in edge \"" +
                                      edge_name + "\" in entity \"" + name +
                                      "\" "
                                      "in the system YAML file is not a simple "
@@ -1489,18 +1702,6 @@ namespace adaptyst {
     for (auto &entity : this->entities) {
       entity.second->close();
     }
-  }
-
-  std::vector<std::shared_ptr<Identifiable> > System::get_all_identifiables() {
-    std::vector<std::shared_ptr<Identifiable> > result;
-    for (auto &entity : this->entities) {
-      result.push_back(entity.second);
-      for (auto &node : entity.second->get_all_nodes()) {
-        result.push_back(node);
-      }
-    }
-
-    return result;
   }
 
   void System::set_sdfg(std::string sdfg) {

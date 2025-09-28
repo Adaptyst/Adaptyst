@@ -18,6 +18,7 @@ include(FetchContent)
 include(CMakePackageConfigHelpers)
 
 # option(ENABLE_TESTS "Enable Adaptyst automated tests" OFF)
+set(ADAPTYST_MISC_PATH "/opt/adaptyst" CACHE STRING "Path where Adaptyst miscellaneous files should be installed into")
 set(ADAPTYST_MODULE_PATH "/opt/adaptyst/modules" CACHE STRING "Path where Adaptyst modules should be installed into")
 set(ADAPTYST_CONFIG_PATH "/etc/adaptyst.conf" CACHE STRING "Path where Adaptyst config file should be stored in")
 
@@ -81,7 +82,8 @@ target_include_directories(adaptyst PUBLIC
 configure_package_config_file(
   ${CMAKE_SOURCE_DIR}/adaptyst-config.cmake.in
   ${CMAKE_BINARY_DIR}/adaptyst-config.cmake
-  INSTALL_DESTINATION lib/cmake/adaptyst)
+  INSTALL_DESTINATION lib/cmake/adaptyst
+  PATH_VARS ADAPTYST_MODULE_PATH)
 
 install(TARGETS adaptyst
   EXPORT adaptyst-targets
@@ -105,6 +107,7 @@ add_executable(adaptyst-bin
   src/main.cpp
   src/entrypoint.cpp)
 
+target_compile_definitions(adaptyst-bin PRIVATE ADAPTYST_MISC_PATH="${ADAPTYST_MISC_PATH}")
 target_compile_definitions(adaptyst-bin PRIVATE ADAPTYST_MODULE_PATH="${ADAPTYST_MODULE_PATH}")
 target_compile_definitions(adaptyst-bin PRIVATE ADAPTYST_CONFIG_FILE="${ADAPTYST_CONFIG_PATH}")
 
@@ -134,7 +137,8 @@ target_include_directories(adaptyst-bin PUBLIC ${Boost_INCLUDE_DIRS})
 set_target_properties(adaptyst-bin PROPERTIES OUTPUT_NAME "adaptyst")
 install(TARGETS adaptyst-bin RUNTIME)
 install(PROGRAMS src/utils/adaptyst-code.py TYPE BIN RENAME adaptyst-code)
-install(FILES src/scripts/gen_sdfg.py DESTINATION ${ADAPTYST_MODULE_PATH})
+install(FILES src/scripts/gen_sdfg.py DESTINATION ${ADAPTYST_MISC_PATH})
+install(FILES src/scripts/compile_sdfg.py DESTINATION ${ADAPTYST_MISC_PATH})
 
 # if (ENABLE_TESTS)
 #   include(FetchContent)

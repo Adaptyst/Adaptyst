@@ -2,7 +2,7 @@
 #define ADAPTYST_PROCESS_HPP_
 
 #include "socket.hpp"
-#include "os_detect.hpp"
+#include "os_detect.h"
 #include <unordered_map>
 #include <vector>
 #include <string>
@@ -17,11 +17,11 @@ namespace adaptyst {
   namespace fs = std::filesystem;
 
   /**
-     A class describing the configuration of CPU cores for profiling.
+     A class describing the configuration of CPU cores for performance analysis.
 
      Specifically, CPUConfig describes what cores should be used for
-     processing + profiling, what cores should be used for running
-     the command, what cores should be used for both, and what cores should
+     performance analysis, what cores should be used for running
+     the workflow, what cores should be used for both, and what cores should
      not be used at all.
   */
   class CPUConfig {
@@ -29,8 +29,8 @@ namespace adaptyst {
     bool valid;
     int profiler_thread_count;
 #ifdef ADAPTYST_UNIX
-    cpu_set_t cpu_profiler_set;
-    cpu_set_t cpu_command_set;
+    cpu_set_t cpu_analysis_set;
+    cpu_set_t cpu_workflow_set;
 #endif
 
   public:
@@ -48,17 +48,17 @@ namespace adaptyst {
        @param mask A CPU mask string, where the i-th character
                    defines the purpose of the i-th core as follows:
                    ' ' means "not used",
-                   'p' means "used for processing and profilers",
-                   'c' means "used for the profiled command", and
-                   'b' means "used for both the profiled command and processing + profilers".
+                   'p' means "used for performance analysis",
+                   'c' means "used for the executed workflow", and
+                   'b' means "used for both the executed workflow and performance analysis".
     */
     CPUConfig(std::string mask) {
       this->valid = false;
       this->profiler_thread_count = 0;
 
 #ifdef ADAPTYST_UNIX
-      CPU_ZERO(&this->cpu_profiler_set);
-      CPU_ZERO(&this->cpu_command_set);
+      CPU_ZERO(&this->cpu_analysis_set);
+      CPU_ZERO(&this->cpu_workflow_set);
 #endif
 
       if (!mask.empty()) {
@@ -68,24 +68,24 @@ namespace adaptyst {
           if (mask[i] == 'p') {
             this->profiler_thread_count++;
 #ifdef ADAPTYST_UNIX
-            CPU_SET(i, &this->cpu_profiler_set);
+            CPU_SET(i, &this->cpu_analysis_set);
 #endif
           } else if (mask[i] == 'c') {
 #ifdef ADAPTYST_UNIX
-            CPU_SET(i, &this->cpu_command_set);
+            CPU_SET(i, &this->cpu_workflow_set);
 #endif
           } else if (mask[i] == 'b') {
             this->profiler_thread_count++;
 #ifdef ADAPTYST_UNIX
-            CPU_SET(i, &this->cpu_profiler_set);
-            CPU_SET(i, &this->cpu_command_set);
+            CPU_SET(i, &this->cpu_analysis_set);
+            CPU_SET(i, &this->cpu_workflow_set);
 #endif
           } else if (mask[i] != ' ') {
             this->valid = false;
             this->profiler_thread_count = 0;
 #ifdef ADAPTYST_UNIX
-            CPU_ZERO(&this->cpu_profiler_set);
-            CPU_ZERO(&this->cpu_command_set);
+            CPU_ZERO(&this->cpu_analysis_set);
+            CPU_ZERO(&this->cpu_workflow_set);
 #endif
             return;
           }
@@ -104,8 +104,8 @@ namespace adaptyst {
     }
 
     /**
-       Returns the number of profiler threads that can be spawned
-       based on how many cores are allowed for doing the profiling.
+       Returns the number of performance analysis threads that can be spawned
+       based on how many cores are allowed for doing the analysis.
     */
     int get_profiler_thread_count() const {
       return this->profiler_thread_count;
@@ -114,22 +114,26 @@ namespace adaptyst {
 #ifdef ADAPTYST_UNIX
     /**
        Returns the sched_setaffinity-compatible CPU set for doing
-       the profiling.
+       the performance analysis.
     */
-    cpu_set_t get_cpu_profiler_set() const {
-      return this->cpu_profiler_set;
+    cpu_set_t get_cpu_analysis_set() const {
+      return this->cpu_analysis_set;
     }
 
     /**
        Returns the sched_setaffinity-compatible CPU set for running
-       the profiled command.
+       the workflow.
     */
-    cpu_set_t get_cpu_command_set() const {
-      return this->cpu_command_set;
+    cpu_set_t get_cpu_workflow_set() const {
+      return this->cpu_workflow_set;
     }
 #endif
   };
 
+  /**
+     This class represents an arbitrary code running in a separate
+     program process.
+  */
   class Process {
   private:
     std::variant<std::vector<std::string>,
@@ -211,23 +215,79 @@ namespace adaptyst {
     }
 
   public:
-    static const int ERROR_START_PROFILE = 200;
+    /**
+       Error exit code when receiving a notification to start the process
+       properly.
+    */
+    static const int ERROR_START = 200;
+
+    /**
+       Error exit code when opening or accessing the file for redirecting
+       stdout.
+    */
     static const int ERROR_STDOUT = 201;
+
+    /**
+       Error exit code when opening or accessing the file for redirecting
+       stderr.
+    */
     static const int ERROR_STDERR = 202;
+
+    /**
+       Error exit code when calling dup2() for redirecting stdout.
+    */
     static const int ERROR_STDOUT_DUP2 = 203;
+
+    /**
+       Error exit code when calling dup2() for redirecting stderr.
+    */
     static const int ERROR_STDERR_DUP2 = 204;
+
+    /**
+       Error exit code when setting CPU affinity for the process.
+    */
     static const int ERROR_AFFINITY = 205;
+
+    /**
+       Error exit code when calling dup2() for redirecting stdin.
+    */
     static const int ERROR_STDIN_DUP2 = 206;
+
+    /**
+       Error exit code due to failing to find the given executable.
+    */
     static const int ERROR_NOT_FOUND = 207;
+
+    /**
+       Error exit code due to not having sufficient permissions to execute the
+       given command.
+    */
     static const int ERROR_NO_ACCESS = 208;
+
+    /**
+       Error exit code when setting environment variables.
+    */
     static const int ERROR_SETENV = 209;
 
+    /**
+       Constructs a Process object.
+
+       @param command  Function returning an exit code to execute in
+                       a separate process.
+       @param buf_size Internal buffer size in bytes.
+    */
     Process(std::function<int()> command,
             unsigned int buf_size = 1024) {
       this->command = command;
       this->init(buf_size);
     }
 
+    /**
+       Constructs a Process object.
+
+       @param command  Shell command to execute in a separate process.
+       @param buf_size Internal buffer size in bytes.
+    */
     Process(std::vector<std::string> &command,
             unsigned int buf_size = 1024) {
       if (command.empty()) {
@@ -255,20 +315,39 @@ namespace adaptyst {
       }
     }
 
+    /**
+       Adds an environment variable in form of a key-value pair.
+
+       @param key   Environment variable key.
+       @param value Environment variable value.
+    */
     void add_env(std::string key, std::string value) {
       this->env[key] = value;
     }
 
+    /**
+       Redirects stdout to a specified file.
+
+       @param path Path to a stdout file.
+    */
     void set_redirect_stdout(fs::path path) {
       this->stdout_redirect = true;
       this->stdout_path = path;
     }
 
+    /**
+       Redirects stdout to the terminal.
+    */
     void set_redirect_stdout_to_terminal() {
       this->stdout_redirect = true;
       this->stdout_terminal = true;
     }
 
+    /**
+       Redirects stdout to another process.
+
+       @param process Process to pipe stdout to.
+    */
     void set_redirect_stdout(Process &process) {
       this->stdout_redirect = true;
 
@@ -281,11 +360,32 @@ namespace adaptyst {
 #endif
     }
 
+    /**
+       Redirects stderr to a specified file.
+
+       @param path Path to a stderr file.
+    */
     void set_redirect_stderr(fs::path path) {
       this->stderr_redirect = true;
       this->stderr_path = path;
     }
 
+    /**
+       Spawns a new process executing a code or command specified in the
+       constructor and returns the ID of the process immediately.
+
+       @param wait_for_notify Indicates whether the process should wait
+                              for a notification before executing. If true,
+                              the notification should be sent via notify().
+       @param cpu_config      CPU core configuration for the process.
+       @param is_analysis     Whether the process corresponds to performance
+                              analysis (this is important in the context of
+                              cpu_config).
+       @param working_path    Working directory of the process.
+
+       @return ID of the spawned process (PID in case of a Unix-based
+               system like Linux).
+    */
     int start(bool wait_for_notify, const CPUConfig &cpu_config,
               bool is_profiler, fs::path working_path = fs::current_path()) {
       if (wait_for_notify) {
@@ -359,7 +459,7 @@ namespace adaptyst {
           close_fd(this->notify_pipe[0]);
 
           if (received <= 0 || buf != 0x03) {
-            std::exit(Process::ERROR_START_PROFILE);
+            std::exit(Process::ERROR_START);
           }
         }
 
@@ -437,8 +537,8 @@ namespace adaptyst {
           env[env_entries.size()] = nullptr;
 
           if (cpu_config.is_valid()) {
-            cpu_set_t affinity = is_profiler ? cpu_config.get_cpu_profiler_set() :
-              cpu_config.get_cpu_command_set();
+            cpu_set_t affinity = is_profiler ? cpu_config.get_cpu_analysis_set() :
+              cpu_config.get_cpu_workflow_set();
 
             if (sched_setaffinity(0, sizeof(affinity), &affinity) == -1) {
               std::exit(Process::ERROR_AFFINITY);
@@ -501,10 +601,26 @@ namespace adaptyst {
 #endif
     }
 
+    /**
+       Spawns a new process executing a code or command specified in the
+       constructor and returns the ID of the process immediately,
+       with a simplified set of arguments (no notification,
+       no specific CPU core configuration, no indication of the process
+       as a performance-analysis-related one).
+
+       @param working_path Working directory of the process.
+
+       @return ID of the spawned process (PID in case of a Unix-based
+               system like Linux).
+    */
     int start(fs::path working_path = fs::current_path()) {
       return start(false, CPUConfig(""), false, working_path);
     }
 
+    /**
+       Notifies the process that it can start. Relevant when
+       start() has been called with wait_for_notify set to true.
+    */
     void notify() {
       if (this->started) {
         if (this->notifiable) {
@@ -525,6 +641,9 @@ namespace adaptyst {
       }
     }
 
+    /**
+       Reads a line from stdout.
+    */
     std::string read_line() {
       if (this->stdout_redirect) {
         throw Process::NotReadableException();
@@ -537,6 +656,12 @@ namespace adaptyst {
 #endif
     }
 
+    /**
+       Writes data to stdin.
+
+       @param buf  Data to write.
+       @param size Number of bytes to write.
+    */
     void write_stdin(char *buf, unsigned int size) {
       if (this->started) {
         if (this->writable) {
@@ -553,6 +678,11 @@ namespace adaptyst {
       }
     }
 
+    /**
+       Waits for the process to finish executing.
+
+       @return Exit code of the process.
+    */
     int join() {
       if (this->started) {
 #ifdef ADAPTYST_UNIX
@@ -579,6 +709,11 @@ namespace adaptyst {
       }
     }
 
+    /**
+       Returns whether the process is currently running.
+
+       @return Whether the process is running.
+    */
     bool is_running() {
       if (!this->started) {
         return false;
@@ -591,6 +726,10 @@ namespace adaptyst {
 #endif
     }
 
+    /**
+       Closes stdin for writing. This is equivalent
+       to sending EOF to stdin.
+    */
     void close_stdin() {
       if (!this->writable) {
         throw Process::NotWritableException();
@@ -604,6 +743,9 @@ namespace adaptyst {
 #endif
     }
 
+    /**
+       Terminates the process.
+    */
     void terminate() {
 #ifdef ADAPTYST_UNIX
       kill(this->id, SIGTERM);
@@ -612,14 +754,50 @@ namespace adaptyst {
 #endif
     }
 
-    class NotifyException : public std::exception { };
+    /**
+       Exception thrown when attempting to read from stdout
+       which has been redirected.
+    */
     class NotReadableException : public std::exception { };
+
+    /**
+       Exception thrown when stdin is not writable.
+    */
     class NotWritableException : public std::exception { };
+
+    /**
+       Exception thrown when an error occurs during the process
+       startup. This is due to either pipe creation failures,
+       fork errors, or incorrect redirection configurations.
+    */
     class StartException : public std::exception { };
+
+    /**
+       Exception thrown when a Process object is attempted to be
+       constructed with an empty command.
+    */
     class EmptyCommandException : public std::exception { };
+
+    /**
+       Exception thrown when join() fails.
+    */
     class WaitException : public std::exception { };
+
+    /**
+       Exception thrown when a process hasn't been started yet.
+    */
     class NotStartedException : public std::exception { };
+
+    /**
+       Exception thrown when notify() is called while the process
+       has been started with wait_for_notify set to false.
+    */
     class NotNotifiableException : public std::exception { };
+
+    /**
+       Exception thrown when a feature hasn't been implemented
+       yet for a given platform or at all.
+    */
     class NotImplementedException : public std::exception { };
   };
 };

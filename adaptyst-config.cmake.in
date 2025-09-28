@@ -1,5 +1,7 @@
 @PACKAGE_INIT@
 
+set(ADAPTYST_MODULE_PATH "@PACKAGE_ADAPTYST_MODULE_PATH@")
+
 include("${CMAKE_CURRENT_LIST_DIR}/adaptyst-targets.cmake")
 
 find_package(nlohmann_json REQUIRED)

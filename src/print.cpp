@@ -79,8 +79,8 @@ namespace adaptyst {
       std::cout << std::endl;
     }
 
-    this->print("All logs are streamed to and saved in form of "
-                "\"<entity/node ID>_<log type>.log\" inside the path below.",
+    this->print("All logs are streamed to and saved inside the path below, "
+                "structured into entities -> nodes/edges -> modules.",
                 false, false);
     this->print(this->log_dir.string(), true, false);
   }
@@ -97,19 +97,29 @@ namespace adaptyst {
       }
 
       if (log_streams[source].find(log_type) == log_streams[source].end()) {
+        fs::path path = source->get_path(this->log_dir);
+
+        if (!fs::exists(path) && !fs::create_directories(path)) {
+          throw std::runtime_error("Could not create " + path.string());
+        }
+
         log_streams[source][log_type] =
-          std::ofstream(this->log_dir / (source->get_id() + "_" + log_type + ".log"));
+          std::ofstream(path / (log_type + ".log"));
       }
 
       stream = &log_streams[source][log_type];
     }
 
     if (!stream) {
-      return;
+      throw std::runtime_error("Logging " + log_type + " of "
+                               + source->get_name() +
+                               ": no output stream found");
     }
 
     if (!*stream) {
-      return;
+      throw std::runtime_error("Logging " + log_type + " of "
+                               + source->get_name() +
+                               ": I/O error");
     }
 
     *stream << message << std::endl;

@@ -19,30 +19,66 @@ namespace adaptyst {
 
   class Identifiable {
   private:
-    std::string id;
+    std::string name;
+    Identifiable *parent;
+    std::unordered_map<fs::path, fs::path> paths;
 
   protected:
-    Identifiable(std::string id);
+    Identifiable(std::string name) {
+      this->name = name;
+      this->parent = nullptr;
+    }
+
     inline void throw_error(std::string msg) {
-      throw std::runtime_error(id + ": " + msg);
+      throw std::runtime_error(name + ": " + msg);
     }
 
   public:
-    std::string get_id();
-    const char *get_id_c_str();
+    std::string &get_name() {
+      return this->name;
+    }
+
+    void set_parent(Identifiable *identifiable) {
+      this->parent = identifiable;
+    }
+
+    fs::path &get_path(fs::path start) {
+      if (this->paths.find(start) == this->paths.end()) {
+        std::vector<std::string> chain;
+
+        chain.push_back(this->name);
+
+        Identifiable *current = this->parent;
+
+        while (current) {
+          chain.push_back(current->name);
+          current = current->parent;
+        }
+
+        fs::path result = start;
+
+        for (int i = chain.size() - 1; i >= 0; i--) {
+          result /= chain[i];
+        }
+
+        this->paths[start] = result;
+      }
+
+      return this->paths[start];
+    }
+
     virtual std::vector<std::string> get_log_types() = 0;
     virtual std::string get_type() = 0;
   };
 
+  class Node;
   class Entity;
   class System;
 
-  class Node : public Identifiable {
+  class Module : public Identifiable {
   public:
-    static std::unordered_map<amod_t, Node *> all_nodes;
-    static amod_t next_node_id;
-    static std::unordered_map<amod_t, std::string> internal_error_msgs;
-    static std::unordered_map<amod_t, int> internal_error_codes;
+    static std::unordered_map<amod_t, Module *> all_modules;
+    static amod_t next_module_id;
 
     struct OptionMetadata {
       std::string help;
@@ -53,54 +89,104 @@ namespace adaptyst {
       unsigned int default_array_value_size;
     };
 
-    Node(std::string id, std::string backend,
-         std::unordered_map<std::string, std::string> &options,
-         std::unordered_map<std::string, std::vector<std::string>>
-             &array_options,
-         std::shared_ptr<Entity> &entity,
-         fs::path library_path);
-    ~Node();
-    std::shared_ptr<Entity> &get_entity();
+    Module(std::string backend_name,
+           std::unordered_map<std::string, std::string> &options,
+           std::unordered_map<std::string, std::vector<std::string>> &array_options,
+           fs::path library_path,
+           bool never_directing);
+    ~Module();
     bool init();
-    void process(std::string &sdfg);
+    void process(std::string sdfg);
     bool wait();
     void close();
     void set_will_profile(bool will_profile);
     bool get_will_profile();
     void set_error(std::string error);
-    void set_context(void *context);
-    void *get_context();
     std::unordered_map<std::string, option> &get_options();
-    std::unique_ptr<Path> &get_node_dir();
+    std::unique_ptr<Path> &get_dir();
     std::unordered_set<std::string> &get_tags();
     std::unordered_map<std::string, OptionMetadata> &get_all_options();
-    void set_node_dir(fs::path &node_dir);
+    void set_dir(fs::path dir);
     void profile_notify();
     int profile_wait();
+    std::vector<std::string> get_log_types();
+    std::string get_type();
+    std::string &get_node_name();
+    void set_api_error(std::string msg, int code);
+    int get_api_error_code();
+    std::string &get_api_error_msg();
+    bool is_directing_node();
+    void add_src_code_path(fs::path path);
+    void set_node(Node *node);
+    fs::path &get_tmp_dir();
+    fs::path &get_local_config_dir();
+    bool has_in_tag(std::string tag);
+    bool has_out_tag(std::string tag);
+    profile_info &get_profile_info();
+    void set_profile_info(profile_info info);
+    bool is_initialising();
+    const char *get_cpu_mask();
+    std::unordered_set<fs::path> &get_src_code_paths();
+
+  private:
+    amod_t id;
+    std::unordered_map<std::string, option> options;
+    std::unordered_map<std::string, OptionMetadata> option_metadata;
+    std::unique_ptr<Path> dir;
+    bool will_profile;
+    std::string error;
+    void *context;
+    void *handle;
+    std::future<bool> process_future;
+    std::vector<std::string> log_types;
+    std::vector<void *> malloced;
+    std::unordered_set<std::string> tags;
+    Node *node;
+    bool initialised;
+    bool never_directing;
+    int api_error_code;
+    std::string api_error_msg;
+    bool initialising;
+    std::unordered_set<fs::path> src_code_paths;
+  };
+
+  class Node : public Identifiable {
+  public:
+    Node(std::string name,
+         std::shared_ptr<Entity> &entity);
+    bool init();
+    void process(std::string &sdfg);
+    bool wait();
+    void close();
+    std::unordered_set<std::string> &get_tags();
     void add_in_tags(std::unordered_set<std::string> &tags);
     void add_out_tags(std::unordered_set<std::string> &tags);
     bool has_in_tag(std::string tag);
     bool has_out_tag(std::string tag);
+    void add_module(std::unique_ptr<Module> &mod);
+    void profile_notify();
+    int profile_wait();
+    bool get_will_profile();
+    void set_will_profile(bool will_profile);
+    void set_dir(fs::path path);
     std::vector<std::string> get_log_types();
     std::string get_type();
+    bool is_directing();
+    profile_info &get_profile_info();
+    void set_profile_info(profile_info info);
+    const char *get_cpu_mask();
+    fs::path &get_tmp_dir();
+    fs::path &get_local_config_dir();
+    std::unordered_set<fs::path> get_src_code_paths();
 
   private:
-    amod_t module_id;
-    std::string backend;
+    std::unique_ptr<Path> dir;
+    std::vector<std::unique_ptr<Module> > modules;
     std::shared_ptr<Entity> entity;
-    std::unordered_map<std::string, option> options;
-    std::unordered_map<std::string, OptionMetadata> option_metadata;
-    std::unique_ptr<Path> node_dir;
-    bool will_profile;
-    std::string error;
-    void *context;
     std::unordered_set<std::string> tags;
     std::unordered_set<std::string> in_tags;
     std::unordered_set<std::string> out_tags;
-    void *backend_handle;
-    std::future<bool> process_future;
-    std::vector<std::string> log_types;
-    std::vector<void *> malloced;
+    bool will_profile;
   };
 
   class NodeConnection : public Identifiable {
@@ -121,7 +207,7 @@ namespace adaptyst {
   class Entity : public Identifiable {
   public:
     enum AccessMode {
-      IN_PLACE,
+      LOCAL,
       REMOTE,
       CUSTOM,
       CUSTOM_REMOTE
@@ -147,13 +233,12 @@ namespace adaptyst {
     void profile_notify();
     int profile_wait();
     const char *get_cpu_mask();
-    fs::path get_tmp_dir();
-    fs::path get_local_config_dir();
-    std::vector<std::shared_ptr<Identifiable> > get_all_nodes();
+    fs::path &get_tmp_dir();
+    fs::path &get_local_config_dir();
+    std::vector<std::shared_ptr<Node> > get_all_nodes();
     std::vector<std::string> get_log_types();
     std::string get_type();
     void set_sdfg(std::string sdfg);
-    void add_src_code_path(fs::path path);
     std::unordered_set<fs::path> &get_src_code_paths();
 
   private:
@@ -171,6 +256,7 @@ namespace adaptyst {
     bool will_profile;
     std::unique_ptr<Process> profiled_process;
     std::unordered_set<fs::path> src_code_paths;
+    bool src_code_paths_collected;
   };
 
   class System {
@@ -193,7 +279,6 @@ namespace adaptyst {
            fs::path library_path, fs::path local_config_path,
            fs::path tmp_dir, std::variant<fs::path, int> codes_dst);
     ~System();
-    std::vector<std::shared_ptr<Identifiable> > get_all_identifiables();
     void set_sdfg(std::string sdfg);
     void process();
     bool with_custom_src_code_paths();

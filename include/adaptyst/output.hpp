@@ -9,6 +9,10 @@
 namespace adaptyst {
   namespace fs = std::filesystem;
 
+  /**
+     This abstract class describes an arbitrary object with attached metadata in
+     form of key-value pairs, where the value type is templatised.
+   */
   class ObjectWithMetadata {
   protected:
     nlohmann::json metadata;
@@ -18,6 +22,14 @@ namespace adaptyst {
       this->metadata = nlohmann::json::object();
     }
 
+    /**
+       Sets a key-value pair in the metadata.
+
+       @param key   Key in the key-value pair.
+       @param value Value in the key-value pair.
+       @param save  Whether all metadata should be saved to disk or elsewhere
+                    after setting the pair.
+    */
     template<class T>
     void set_metadata(std::string key, T value,
                       bool save = true) {
@@ -30,19 +42,45 @@ namespace adaptyst {
       }
     }
 
+    /**
+       Gets a value from the metadata based on a given key,
+       with the default value provided if the key is not found.
+
+       @param key           Key to look for.
+       @param default_value Value to return if the key is not found.
+
+       @return Value corresponding to the key or the default value
+               if the key is not found.
+    */
     template<class T>
     T get_metadata(std::string key, T default_value) {
       return this->metadata.value(key, default_value);
     }
 
+    /**
+       Gets a value from the metadata based on a given key,
+       throwing an exception if the key is not found.
+
+       @param key Key to look for.
+
+       @return Value corresponding to the key.
+    */
     template<class T>
     T get_metadata(std::string key) {
       return this->metadata[key].get<T>();
     }
 
+    /**
+       Saves metadata in a way dependent on the implementation,
+       e.g. to disk.
+    */
     virtual void save_metadata() = 0;
   };
 
+  /**
+     This class represents a directory path with metadata attached
+     to it thanks to inheriting from ObjectWithMetadata.
+  */
   class Path : public ObjectWithMetadata {
     friend class File;
 
@@ -77,22 +115,46 @@ namespace adaptyst {
     }
 
   public:
+    /**
+       Constructs a Path object.
+
+       @param path Path the object should be about.
+    */
     Path(fs::path path) {
       this->setup(path);
     }
 
+    /**
+       Gets the full path name.
+
+       @return Full path name.
+    */
     const char *get_path_name() {
       return this->path.c_str();
     }
 
+    /**
+       Performs path concatenation.
+
+       @param second String the path should be concatenated with.
+    */
     Path operator/(std::string second) {
       return Path(this->path / second);
     }
 
+    /**
+       Performs path concatenation.
+
+       @param second String (in form of const char *) the path should be
+                     concatenated with.
+    */
     Path operator/(const char *second) {
       return Path(this->path / second);
     }
 
+    /**
+       Saves metadata to disk.
+    */
     void save_metadata() {
       std::ofstream metadata_stream(this->path / "dirmeta.json");
 
@@ -106,6 +168,11 @@ namespace adaptyst {
     }
   };
 
+  /**
+     This class represents a file with metadata attached to it
+     (thanks to inheriting from ObjectFromMetadata) and
+     saved separately.
+  */
   class File : public ObjectWithMetadata {
   protected:
     Path &path;
@@ -114,6 +181,15 @@ namespace adaptyst {
     std::ofstream ostream;
 
   public:
+    /**
+       Constructs a File object.
+
+       @param path      Path to a directory where the file is.
+       @param name      Name of the file without any extension.
+       @param extension Extension of the file.
+       @param truncate  Whether file contents should be truncated if
+                        the file already exists.
+    */
     File(Path &path, std::string name,
          std::string extension = "",
          bool truncate = true) : path(path) {
@@ -166,14 +242,27 @@ namespace adaptyst {
       return *this;
     }
 
+    /**
+       Gets an input stream corresponding to the file.
+
+       @return Input stream.
+    */
     std::ifstream &get_istream() {
       return this->istream;
     }
 
+    /**
+       Gets an output stream corresponding to the file.
+
+       @return Output stream.
+    */
     std::ofstream &get_ostream() {
       return this->ostream;
     }
 
+    /**
+       Saves metadata to disk, separately from the file itself.
+    */
     void save_metadata() {
       fs::path metadata_path = path.path / ("meta_" + this->name + ".json");
 
@@ -195,12 +284,23 @@ namespace adaptyst {
   } && std::is_same_v<T, std::pair<typename T::first_type,
                                    typename T::second_type> >;
 
+  /**
+     This class represents an array of arbitrary values saved to a file
+     and with metadata attached to it (thanks to inheriting from File which
+     inherits from ObjectWithMetadata) and saved separately.
+  */
   template<class T>
   class Array : public File {
   private:
     std::vector<T> vec;
 
   public:
+    /**
+       Constructs an Array object.
+
+       @param path Path to a directory where the array is.
+       @param name Name of the array.
+    */
     Array(Path &path, std::string name) : File(path, name, ".dat", false) {
       while (this->istream && !this->istream.eof()) {
         T val;
@@ -218,14 +318,32 @@ namespace adaptyst {
       }
     }
 
+    /**
+       Accesses the index-th element of the array.
+
+       @param index Array index to access.
+       
+       @return index-th element of the array.
+    */
     T operator[](int index) {
       return this->vec[index];
     }
 
+    /**
+       Gets the current array size.
+
+       @return Array size.
+    */
     int size() {
       return this->vec.size();
     }
 
+    /**
+       Pushes a new element to the end of the array and saves
+       the new array to disk.
+
+       @param val Value to push.
+    */
     void push_back(T val) {
       this->vec.push_back(val);
 

@@ -79,7 +79,7 @@ def run(paths_file, output, verbose):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         prog='adaptyst-code',
-        description='Profiled code packaging tool for Adaptyst',
+        description='Analysed code packaging tool for Adaptyst',
         formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('paths_file', metavar='PATHS_FILE',

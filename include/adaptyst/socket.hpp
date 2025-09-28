@@ -1,7 +1,7 @@
 #ifndef ADAPTYST_SOCKET_HPP_
 #define ADAPTYST_SOCKET_HPP_
 
-#include "os_detect.hpp"
+#include "os_detect.h"
 #include <string>
 #include <queue>
 #include <memory>

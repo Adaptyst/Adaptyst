@@ -181,10 +181,10 @@ namespace adaptyst {
 
     CLI11_PARSE(app, argc, argv);
 
-    fs::path library_path(ADAPTYST_MODULE_PATH);
+    fs::path module_path(ADAPTYST_MODULE_PATH);
 
     if (getenv("ADAPTYST_MODULE_DIR")) {
-      library_path = fs::path(getenv("ADAPTYST_MODULE_DIR"));
+      module_path = fs::path(getenv("ADAPTYST_MODULE_DIR"));
     }
 
     fs::path system_config_path(ADAPTYST_CONFIG_FILE);
@@ -312,7 +312,12 @@ namespace adaptyst {
     int to_return = 0;
 
     const char *existing_pythonpath = getenv("PYTHONPATH");
-    std::string pythonpath = library_path.string();
+
+    std::string pythonpath = ADAPTYST_MISC_PATH;
+    
+    if (getenv("ADAPTYST_MISC_DIR")) {
+      pythonpath = fs::path(getenv("ADAPTYST_MISC_DIR"));
+    }
 
     if (existing_pythonpath) {
       pythonpath += ":" + std::string(existing_pythonpath);
@@ -323,7 +328,7 @@ namespace adaptyst {
 
     try {
       terminal.print("Reading the computer system definition file...", false, false);
-      System system(system_def_dir, fs::path(out_dir) / "system", library_path,
+      System system(system_def_dir, fs::path(out_dir) / "system", module_path,
                     local_config_path, tmp_dir / "system");
 
       terminal.print("Making an SDFG of the command/workflow...", false, false);
