@@ -257,6 +257,9 @@ namespace adaptyst {
     std::unique_ptr<Process> profiled_process;
     std::unordered_set<fs::path> src_code_paths;
     bool src_code_paths_collected;
+    bool workflow_finish_printed;
+    long long workflow_start_time;
+    std::mutex workflow_finish_print_mutex;
   };
 
   class System {

@@ -392,6 +392,7 @@ extern "C" {
 
 namespace adaptyst {
   namespace py = pybind11;
+  namespace ch = std::chrono;
 
   std::unordered_map<amod_t, Module *> Module::all_modules;
   amod_t Module::next_module_id = 1;
@@ -1037,6 +1038,7 @@ namespace adaptyst {
     this->local_config_path = local_config_path;
     this->tmp_dir = tmp_dir;
     this->src_code_paths_collected = false;
+    this->workflow_finish_printed = false;
   }
 
   void Entity::add_node(std::shared_ptr<Node> &node) {
@@ -1126,13 +1128,15 @@ namespace adaptyst {
 
         void *sdfg_handle = init();
 
-        void (*program)(void *) = (void (*)(void *)) dlsym(handle, "__program_AdaptystRootSDFG");
+        void (*program)(void *, int *) = (void (*)(void *, int *)) dlsym(handle, "__program_AdaptystRootSDFG");
 
         if (!program) {
           return 102;
         }
 
-        program(sdfg_handle);
+        int exit_code = 0;
+
+        program(sdfg_handle, &exit_code);
 
         int (*exit)(void *) = (int (*)(void *)) dlsym(handle, "__dace_exit_AdaptystRootSDFG");
 
@@ -1142,7 +1146,7 @@ namespace adaptyst {
 
         exit(sdfg_handle);
 
-        return 0;
+        return exit_code;
       });
 
       fs::path stdout_path =
@@ -1156,6 +1160,13 @@ namespace adaptyst {
       this->profiling_info.type = LINUX_PROCESS;
       this->profiling_info.data.pid = this->profiled_process->start(
           true, CPUConfig(this->get_cpu_mask()), false);
+
+      this->workflow_start_time = ch::duration_cast<ch::milliseconds>(ch::system_clock::now().time_since_epoch()).count();
+
+      Terminal::instance->print("Workflow has been started in entity " + this->get_name() + ". "
+                                "You can check its stdout and stderr in real time by looking at:\n" +
+                                stdout_path.string() + "\n" + stderr_path.string(),
+                                true, false);
     }
 
     for (auto entry : this->nodes) {
@@ -1166,7 +1177,8 @@ namespace adaptyst {
       entry.second->wait();
     }
 
-    this->profile_wait();
+    int exit_code = this->profile_wait();
+    this->entity_dir->set_metadata<int>("exit_code", exit_code);
 
     if (save_src_code_paths) {
       Archive archive(fs::path(this->entity_dir->get_path_name()) / "src.zip");
@@ -1218,7 +1230,60 @@ namespace adaptyst {
 
   int Entity::profile_wait() {
     if (this->profiled_process) {
-      return this->profiled_process->join();
+      int result = this->profiled_process->join();
+      auto end_time = ch::duration_cast<ch::milliseconds>(ch::system_clock::now().time_since_epoch()).count();
+
+      {
+        std::unique_lock lock(this->workflow_finish_print_mutex);
+
+        if (!this->workflow_finish_printed) {
+          unsigned long long elapsed = end_time - this->workflow_start_time;
+          std::string elapsed_str;
+
+          if (elapsed >= 1000) {
+            int ms = elapsed % 1000;
+            elapsed /= 1000;
+
+            elapsed_str = std::to_string(elapsed) + ".";
+
+            if (ms >= 100) {
+              elapsed_str += std::to_string(ms);
+            } else if (ms >= 10) {
+              elapsed_str += "0" + std::to_string(ms);
+            } else {
+              elapsed_str += "00" + std::to_string(ms);
+            }
+
+            elapsed_str += " s";
+          } else {
+            elapsed_str = std::to_string(elapsed) + " ms";
+          }
+
+          if (result == 0) {
+            Terminal::instance->print("Workflow in entity " + this->get_name() +
+                                      " has finished successfully in " +
+                                      elapsed_str + ".",
+                                      true, false);
+          } else {
+            std::string msg = "Workflow in entity " + this->get_name() +
+              " has finished with a non-zero exit code "
+              "(" + std::to_string(result) + ") in " + elapsed_str + ". "
+              "The way of handling this "
+              "is module-dependent.";
+
+            if (result == 255) {
+              msg += "\nHint: The exit code is 255, which may suggest that your workflow "
+                "has encountered an unrecoverable error, e.g. a segmentation fault.";
+            }
+
+            Terminal::instance->print(msg, true, true);
+          }
+
+          this->workflow_finish_printed = true;
+        }
+      }
+
+      return result;
     }
 
     return -1;

@@ -696,7 +696,11 @@ namespace adaptyst {
         this->started = false;
         this->notifiable = false;
         this->completed = true;
-        this->exit_code = WEXITSTATUS(status);
+        if (WIFEXITED(status)) {
+          this->exit_code = WEXITSTATUS(status);
+        } else {
+          this->exit_code = 255;
+        }
 
         return this->exit_code;
 #else
