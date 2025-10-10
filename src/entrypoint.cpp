@@ -56,6 +56,24 @@ namespace adaptyst {
 
     app.set_version_flag("-v,--version", adaptyst::version);
 
+    bool list_modules = false;
+    app.add_flag("--modules", list_modules, "List in detail all "
+                 "installed system modules and exit");
+
+    bool list_plugins = false;
+    app.add_flag("--plugins", list_plugins, "List in detail all "
+                 "installed workflow plugins and exit");
+
+    std::string module_help = "";
+    app.add_option("-m,--module-help", module_help, "Print the help "
+                   "message of a given module and exit")
+      ->option_text("MODULE");
+
+    std::string plugin_help = "";
+    app.add_option("-p,--plugin-help", plugin_help, "Print the help "
+                   "message of a given plugin and exit")
+      ->option_text("PLUGIN");
+
     bool is_command = false;
     app.add_flag("-d,--command", is_command, "Indicates that a command "
                  "will be provided for analysis rather than "
@@ -68,8 +86,7 @@ namespace adaptyst {
                    "documentation to learn how to write a computer system "
                    "definition file.")
       ->check(CLI::ExistingFile)
-      ->option_text("FILE")
-      ->required();
+      ->option_text("FILE");
 
     std::string out_dir = "";
     app.add_option("-o,--output", out_dir, "Path to the directory where "
@@ -103,10 +120,6 @@ namespace adaptyst {
       })
       ->option_text("TYPE[:ARG]");
 
-    bool batch = false;
-    app.add_flag("--batch", batch, "Run Adaptyst in batch mode "
-                 "(i.e. with no in-line updates)");
-
     bool no_format = false;
     app.add_flag("--no-format", no_format, "Do not use any non-standard "
                  "terminal formatting");
@@ -116,7 +129,7 @@ namespace adaptyst {
       "configuration files, set the environment variables ADAPTYST_CONFIG and\n"
       "ADAPTYST_LOCAL_CONFIG respectively to values of your choice. Similarly,\n"
       "you can set the ADAPTYST_MODULE_DIR environment variable to change the path\n"
-      "where Adaptyst looks for workflow and system modules.";
+      "where Adaptyst looks for workflow plugins and system modules.";
 
     app.footer(footer);
 
@@ -139,7 +152,7 @@ namespace adaptyst {
           const char *not_valid = "The command you have provided is not a valid one!";
 
           if (arg.empty()) {
-            return not_valid;
+            return "";
           } else if (call_split_unix) {
             std::vector<std::string> parts = boost::program_options::split_unix(arg);
 
@@ -155,7 +168,7 @@ namespace adaptyst {
           }
         } else {
           if (arg.empty()) {
-            return "The path you have provided is not a valid one!";
+            return "";
           } else if (command_elements.size() > 0) {
             return "You must provide a single path only.";
           } else {
@@ -176,8 +189,7 @@ namespace adaptyst {
         return "";
       })
       ->option_text(" ")
-      ->take_all()
-      ->required();
+      ->take_all();
 
     CLI11_PARSE(app, argc, argv);
 
@@ -197,6 +209,170 @@ namespace adaptyst {
 
     if (getenv("ADAPTYST_LOCAL_CONFIG")) {
       local_config_path = fs::path(getenv("ADAPTYST_LOCAL_CONFIG"));
+    }
+
+    if (list_modules || list_plugins) {
+      int to_return = 0;
+
+      if (list_modules) {
+        try {
+          auto modules = Module::get_all_modules(module_path);
+
+          if (modules.empty()) {
+            std::cout << "No modules are installed." << std::endl;
+          } else {
+            std::cout << "Installed modules:" << std::endl;
+            for (auto &module : modules) {
+              std::string name = module->get_name();
+              std::string version = module->get_version();
+              fs::path path = module->get_lib_path();
+
+              std::cout << "* " << name << " v" << version << " (";
+              std::cout << path.string() << ")" << std::endl;
+            }
+          }
+        } catch (std::exception &e) {
+          std::cerr << "An error occurred when querying installed modules.";
+          std::cerr << std::endl;
+          std::cerr << "Details: " << e.what() << std::endl;
+          to_return = 2;
+        }
+
+        if (list_plugins) {
+          std::cout << std::endl;
+        }
+      }
+
+      if (list_plugins) {
+        std::cout << "The full functionality of plugins is not implemented yet.";
+        std::cout << std::endl;
+        std::cout << "You can currently only analyse commands via the -d option.";
+        std::cout << std::endl;
+      }
+
+      return to_return;
+    } else if (module_help != "" && plugin_help != "") {
+      std::cerr << "-m and -p simultaneously are not supported" << std::endl;
+      return 1;
+    } else if (module_help != "") {
+      try {
+        Module module(module_help, module_path);
+
+        std::string name = module.get_name();
+        std::string version = module.get_version();
+
+        std::cout << name << " v" << version << std::endl << std::endl;
+        std::cout << "Available options:" << std::endl;
+        std::cout << "------------------";
+
+        for (auto &option_metadata : module.get_all_options()) {
+          std::cout << std::endl;
+
+          if (option_metadata.second.array_type == NONE &&
+              option_metadata.second.type == NONE) {
+            std::cout << option_metadata.first;
+            std::cout << " (invalid, check with the module developers)";
+            std::cout << std::endl;
+            continue;
+          }
+
+          std::cout << option_metadata.first << " (";
+
+          switch (option_metadata.second.array_type) {
+          case INT:
+            std::cout << "array of integers";
+            break;
+
+          case UNSIGNED_INT:
+            std::cout << "array of unsigned integers";
+            break;
+
+          case STRING:
+            std::cout << "array of strings";
+            break;
+
+          case BOOL:
+            std::cout << "array of booleans";
+            break;
+
+          case NONE:
+            break;
+          }
+
+          switch (option_metadata.second.type) {
+          case INT:
+            std::cout << "integer";
+            break;
+
+          case UNSIGNED_INT:
+            std::cout << "unsigned integer";
+            break;
+
+          case STRING:
+            std::cout << "string";
+            break;
+
+          case BOOL:
+            std::cout << "boolean";
+            break;
+
+          case NONE:
+            break;
+          }
+
+          std::cout << "):" << std::endl;
+
+          std::vector<std::string> parts;
+          boost::split(parts, option_metadata.second.help, boost::is_any_of(" "));
+
+          int characters_printed_in_line = 0;
+          std::cout << "   ";
+
+          for (int i = 0; i < parts.size(); i++) {
+            std::string to_print = parts[i];
+
+            if (i < parts.size() - 1) {
+              to_print += " ";
+            }
+
+            if (characters_printed_in_line > 0 &&
+                characters_printed_in_line + to_print.length() >= 80 - 3) {
+              std::cout << std::endl << "   ";
+              characters_printed_in_line = 0;
+            }
+
+            std::cout << to_print;
+            characters_printed_in_line += to_print.length();
+          }
+
+          std::cout << std::endl;
+        }
+      } catch (std::exception &e) {
+        if (std::string(e.what()).ends_with("Could not find the module!")) {
+          std::cerr << "The specified module could not be found!" << std::endl;
+        } else {
+          std::cerr << "An error occurred! Details: " << std::endl;
+          std::cerr << e.what() << std::endl;
+        }
+
+        return 2;
+      }
+
+      return 0;
+    } else if (plugin_help != "") {
+      std::cout << "The full functionality of plugins is not implemented yet.";
+      std::cout << std::endl;
+      std::cout << "You can currently only analyse commands via the -d option.";
+      std::cout << std::endl;
+      return 0;
+    } else if (system_def_dir == "") {
+      std::cerr << "The definition file of a computer system is required! (use -s)";
+      std::cerr << std::endl;
+      return 1;
+    } else if (command_elements.empty()) {
+      std::cerr << "A YAML file defining a workflow to be analysed is required!";
+      std::cerr << std::endl;
+      return 1;
     }
 
     pid_t current_pid = getpid();
@@ -252,7 +428,7 @@ namespace adaptyst {
     out_dir_obj.set_metadata<std::string>("label", label.empty() ? out_dir : label, false);
     out_dir_obj.save_metadata();
 
-    Terminal::init(batch, !no_format, adaptyst::version,
+    Terminal::init(false, !no_format, adaptyst::version,
                    fs::path(out_dir) / "log");
     Terminal &terminal = *Terminal::instance;
 
@@ -314,7 +490,7 @@ namespace adaptyst {
     const char *existing_pythonpath = getenv("PYTHONPATH");
 
     std::string pythonpath = ADAPTYST_MISC_PATH;
-    
+
     if (getenv("ADAPTYST_MISC_DIR")) {
       pythonpath = fs::path(getenv("ADAPTYST_MISC_DIR"));
     }

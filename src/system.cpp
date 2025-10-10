@@ -397,22 +397,144 @@ namespace adaptyst {
   std::unordered_map<amod_t, Module *> Module::all_modules;
   amod_t Module::next_module_id = 1;
 
-  Module::Module(
-      std::string backend_name, std::unordered_map<std::string, std::string> &options,
-      std::unordered_map<std::string, std::vector<std::string>> &array_options,
-      fs::path library_path, bool never_directing)
-    : Identifiable(backend_name) {
+  std::vector<std::unique_ptr<Module> > Module::get_all_modules(fs::path library_path) {
+    std::vector<std::unique_ptr<Module> > modules;
+    for (auto &entry : fs::directory_iterator(library_path)) {
+      if (!entry.is_directory()) {
+        continue;
+      }
+
+      fs::path mod_path = entry.path() / ("lib" + entry.path().filename().string() + ".so");
+
+      if (!fs::exists(mod_path)) {
+        continue;
+      }
+
+      modules.push_back(std::make_unique<Module>(entry.path().filename().string(), library_path));
+    }
+
+    std::sort(modules.begin(), modules.end(),
+              [](const std::unique_ptr<Module> &a,
+                 const std::unique_ptr<Module> &b) {
+                return a->get_name() < b->get_name();
+              });
+
+    return modules;
+  }
+
+  std::string Module::get_name() {
+    const char **name = (const char **)dlsym(this->handle, "name");
+
+    if (!name) {
+      this->throw_error("No name is defined");
+    }
+
+    if (!(*name)) {
+      this->throw_error("The name is empty");
+    }
+
+    std::string name_str(*name);
+
+    if (name_str.empty()) {
+      this->throw_error("The name is empty");
+    }
+
+    return name_str;
+  }
+
+  std::string Module::get_version() {
+    const char **version = (const char **)dlsym(this->handle, "version");
+
+    if (!version) {
+      this->throw_error("No version is defined");
+    }
+
+    if (!(*version)) {
+      this->throw_error("The version is empty");
+    }
+
+    std::string version_str(*version);
+
+    if (version_str.empty()) {
+      this->throw_error("The version is empty");
+    }
+
+    return version_str;
+  }
+
+  std::vector<int> Module::get_version_nums() {
+    int *version_nums = (int *)dlsym(this->handle, "version_nums");
+
+    if (!version_nums) {
+      this->throw_error("No version number array is defined");
+    }
+
+    std::vector<int> nums;
+
+    for (int i = 0; version_nums[i] >= 0; i++) {
+      nums.push_back(version_nums[i]);
+    }
+
+    if (nums.empty()) {
+      this->throw_error("The array of version numbers is empty");
+    }
+
+    return nums;
+  }
+
+  fs::path Module::get_lib_path() {
+    return this->lib_path;
+  }
+
+  unsigned int Module::get_max_count_per_entity() {
+    return this->max_count_per_entity;
+  }
+
+  Module::Module(std::string backend_name,
+                 fs::path library_path) : Identifiable(backend_name) {
+    std::unordered_map<std::string, std::string> options;
+    std::unordered_map<std::string, std::vector<std::string>> array_options;
+    this->construct(backend_name, options, array_options, library_path, true);
+  }
+
+  Module::Module(std::string backend_name, std::unordered_map<std::string, std::string> &options,
+                 std::unordered_map<std::string, std::vector<std::string>> &array_options,
+                 fs::path library_path, bool never_directing) : Identifiable(backend_name) {
+    this->construct(backend_name, options, array_options, library_path, never_directing);
+  }
+
+  Module::~Module() {
+    for (auto &allocated : this->malloced) {
+      free(allocated);
+    }
+
+    dlclose(this->handle);
+  }
+
+  void Module::construct(std::string backend_name,
+                         std::unordered_map<std::string, std::string> &options,
+                         std::unordered_map<std::string, std::vector<std::string>> &array_options,
+                         fs::path library_path, bool never_directing) {
     this->api_error_code = ADAPTYST_OK;
     this->api_error_msg = "OK, no errors";
 
     fs::path lib_path = library_path / backend_name / ("lib" + backend_name + ".so");
 
+    if (!fs::exists(lib_path)) {
+      this->throw_error("Could not find the module!");
+    }
+
+    this->lib_path = lib_path;
     this->handle = dlopen(lib_path.c_str(), RTLD_LAZY);
 
     if (!this->handle) {
-      this->throw_error("Could not load module \"" + backend_name +
-                        "\"! " + std::string(dlerror()));
+      this->throw_error("Could not load the module! " + std::string(dlerror()));
     }
+
+    unsigned int *max_count_per_entity = (unsigned int *)dlsym(this->handle,
+                                                               "max_count_per_entity");
+
+    this->max_count_per_entity = max_count_per_entity ? *max_count_per_entity : 0;
 
     const char **tags = (const char **)dlsym(this->handle, "tags");
 
@@ -681,14 +803,6 @@ namespace adaptyst {
     Module::all_modules[this->id] = this;
   }
 
-  Module::~Module() {
-    for (auto &allocated : this->malloced) {
-      free(allocated);
-    }
-
-    dlclose(this->handle);
-  }
-
   bool Module::init() {
     this->initialising = true;
 
@@ -786,6 +900,7 @@ namespace adaptyst {
 
   void Module::set_dir(fs::path dir) {
     this->dir = std::make_unique<Path>(dir);
+    this->dir->set_metadata<std::vector<int> >("version", this->get_version_nums());
   }
 
   void Module::profile_notify() {
@@ -1445,6 +1560,7 @@ namespace adaptyst {
     }
 
     for (auto entity : entities.children()) {
+      std::unordered_map<std::string, unsigned int> mod_counts;
       std::string name(entity.key().data(), entity.key().len);
 
       if (!entity.is_map()) {
@@ -1654,6 +1770,21 @@ namespace adaptyst {
           std::unique_ptr<Module> mod_obj = std::make_unique<Module>(
                 module_name_str, options_map, array_options_map, library_path,
                 never_directing);
+
+          if (mod_counts.contains(module_name_str)) {
+            mod_counts[module_name_str]++;
+          } else {
+            mod_counts[module_name_str] = 1;
+          }
+
+          if (mod_obj->get_max_count_per_entity() > 0 &&
+              mod_counts[module_name_str] >
+              mod_obj->get_max_count_per_entity()) {
+            throw std::runtime_error("Too many module instances of " +
+                                     module_name_str + " are declared! "
+                                     "The maximum allowed number is " +
+                                     std::to_string(mod_obj->get_max_count_per_entity()) + ".");
+          }
 
           node_obj->add_module(mod_obj);
 

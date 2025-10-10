@@ -89,6 +89,10 @@ namespace adaptyst {
       unsigned int default_array_value_size;
     };
 
+    static std::vector<std::unique_ptr<Module> > get_all_modules(fs::path library_path);
+
+    Module(std::string backend_name,
+           fs::path library_path);
     Module(std::string backend_name,
            std::unordered_map<std::string, std::string> &options,
            std::unordered_map<std::string, std::vector<std::string>> &array_options,
@@ -127,6 +131,11 @@ namespace adaptyst {
     bool is_initialising();
     const char *get_cpu_mask();
     std::unordered_set<fs::path> &get_src_code_paths();
+    std::string get_name();
+    std::string get_version();
+    std::vector<int> get_version_nums();
+    fs::path get_lib_path();
+    unsigned int get_max_count_per_entity();
 
   private:
     amod_t id;
@@ -148,6 +157,13 @@ namespace adaptyst {
     std::string api_error_msg;
     bool initialising;
     std::unordered_set<fs::path> src_code_paths;
+    fs::path lib_path;
+    unsigned int max_count_per_entity;
+
+    void construct(std::string backend_name,
+                   std::unordered_map<std::string, std::string> &options,
+                   std::unordered_map<std::string, std::vector<std::string>> &array_options,
+                   fs::path library_path, bool never_directing);
   };
 
   class Node : public Identifiable {
