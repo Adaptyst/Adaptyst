@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2025 CERN
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Adaptyst documentation
 Welcome to the Adaptyst documentation for contributors!
 

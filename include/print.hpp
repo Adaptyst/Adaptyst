@@ -1,5 +1,5 @@
-// Adaptyst: a performance analysis tool
-// Copyright (C) CERN. See LICENSE for details.
+// SPDX-FileCopyrightText: 2025 CERN
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 #ifndef PRINT_HPP_
 #define PRINT_HPP_

@@ -1,4 +1,8 @@
 #!/bin/env python3
+
+# SPDX-FileCopyrightText: 2025 CERN
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 import sys
 import argparse
 import json
