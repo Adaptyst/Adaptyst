@@ -4,7 +4,7 @@ SPDX-License-Identifier: CC-BY-4.0
 -->
 
 # Adaptyst
-[![License: GNU GPL v2 only](https://img.shields.io/badge/license-GNU%20GPL%20v2%20only-blue)]()
+[![License: GNU GPL v3](https://img.shields.io/badge/license-GNU%20GPL%20v3-blue)]()
 [![Version](https://img.shields.io/github/v/release/adaptyst/adaptyst?include_prereleases&label=version)](https://github.com/Adaptyst/Adaptyst/releases)
 
 A comprehensive and architecture-agnostic performance analysis tool (formerly AdaptivePerf).
