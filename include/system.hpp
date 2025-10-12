@@ -42,6 +42,14 @@ namespace adaptyst {
       this->parent = identifiable;
     }
 
+    std::string get_parent_name() {
+      if (this->parent) {
+        return this->parent->get_name();
+      } else {
+        return "(N/A)";
+      }
+    }
+
     fs::path &get_path(fs::path start) {
       if (this->paths.find(start) == this->paths.end()) {
         std::vector<std::string> chain;
