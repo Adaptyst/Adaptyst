@@ -39,43 +39,14 @@ namespace adaptyst {
   }
 
   /**
-     Prints the GNU GPL v2 notice.
+     Prints the version and licensing notice.
   */
   void Terminal::print_notice() {
     {
       std::unique_lock lock(this->mutex);
 
       std::cout << "Adaptyst " << this->version << std::endl;
-      std::cout << "Copyright (C) CERN." << std::endl;
-      std::cout << std::endl;
-      std::cout
-          << "This program is free software; you can redistribute it and/or"
-          << std::endl;
-      std::cout << "modify it under the terms of the GNU General Public License"
-                << std::endl;
-      std::cout
-          << "as published by the Free Software Foundation; only version 2."
-          << std::endl;
-      std::cout << std::endl;
-      std::cout
-          << "This program is distributed in the hope that it will be useful,"
-          << std::endl;
-      std::cout
-          << "but WITHOUT ANY WARRANTY; without even the implied warranty of"
-          << std::endl;
-      std::cout
-          << "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the"
-          << std::endl;
-      std::cout << "GNU General Public License for more details." << std::endl;
-      std::cout << std::endl;
-      std::cout
-          << "You should have received a copy of the GNU General Public License"
-          << std::endl;
-      std::cout << "along with this program; if not, write to the Free Software"
-                << std::endl;
-      std::cout << "Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,"
-                << std::endl;
-      std::cout << "MA 02110-1301, USA." << std::endl;
+      std::cout << "Copyright (C) CERN. Core licensed under GNU GPL v3." << std::endl;
       std::cout << std::endl;
     }
 
