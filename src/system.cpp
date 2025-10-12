@@ -1731,8 +1731,8 @@ namespace adaptyst {
           std::unordered_map<std::string, std::string> options_map;
           std::unordered_map<std::string, std::vector<std::string> > array_options_map;
 
-          if (node.has_child("options")) {
-            auto options = node["options"];
+          if (mod.has_child("options")) {
+            auto options = mod["options"];
 
             if (!options.is_map()) {
               throw std::runtime_error("\"options\" in module \"" + module_name_str +
