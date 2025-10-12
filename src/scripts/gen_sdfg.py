@@ -9,14 +9,16 @@ import yaml
 def gen_sdfg_from_cmd(cmd: list):
     graph = sdfg.SDFG(name='AdaptystRootSDFG')
     state = graph.add_state('initial', True)
-    main_cmd = cmd[0].replace('"', r'\"')
+    for i in range(len(cmd)):
+        cmd[i] = cmd[i].replace('"', r'\"')
+    main_cmd = cmd[0]
     node = state.add_tasklet('run_cmd', [], [], """
 int forked = fork();
 if (forked == 0) {
   char *const argv[] = { """ +
   ', '.join(list(map(lambda x:
                      f'const_cast<char *>("{x}")',
-                     cmd[1:])) + ['NULL']) + ' };' + """
+                     cmd)) + ['NULL']) + ' };' + """
   execvp(""" + f'"{main_cmd}", argv);' + """
   std::exit(errno);
 } else {
