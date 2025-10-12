@@ -1376,12 +1376,12 @@ namespace adaptyst {
 
           if (result == 0) {
             Terminal::instance->print("Workflow in entity " + this->get_name() +
-                                      " has finished successfully in " +
+                                      " has completed successfully in " +
                                       elapsed_str + ".",
                                       true, false);
           } else {
             std::string msg = "Workflow in entity " + this->get_name() +
-              " has finished with a non-zero exit code "
+              " has completed with a non-zero exit code "
               "(" + std::to_string(result) + ") in " + elapsed_str + ". "
               "The way of handling this "
               "is module-dependent.";
