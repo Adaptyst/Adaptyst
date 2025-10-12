@@ -997,6 +997,19 @@ namespace adaptyst {
       }
     }
 
+    std::stringstream log_paths;
+
+    log_paths << this->get_path(adaptyst::Terminal::instance->get_log_dir()).string();
+
+    for (auto &mod : this->modules) {
+      log_paths << "\n" << mod->get_path(adaptyst::Terminal::instance->get_log_dir()).string();
+    }
+
+    Terminal::instance->print("Node " + this->get_name() + " in entity " + this->get_parent_name() +
+                              " has been initialised. If produced, you can look at "
+                              "the logs of it and its modules in the folders below (also in real time)."
+                              "\n" + log_paths.str(), true, false);
+
     return true;
   }
 

@@ -553,9 +553,7 @@ namespace adaptyst {
         elapsed_str = std::to_string(elapsed) + " ms";
       }
 
-      terminal.print("Done in " + elapsed_str + " in total! "
-                     "You can inspect the results now.", false, false);
-
+      terminal.print("Done in " + elapsed_str + " in total!", false, false);
       to_return = 0;
     } catch (py::error_already_set &e) {
       std::string msg(e.what());
@@ -593,6 +591,14 @@ namespace adaptyst {
                      std::string(e.what()) + "\".", false, true);
 
       to_return = 2;
+    }
+
+    if (to_return == 0) {
+      terminal.print("The results are available in " + fs::absolute(out_dir).string(),
+                     true, false);
+    } else {
+      terminal.print("The incomplete results are available in " + fs::absolute(out_dir).string(),
+                     true, false);
     }
 
     for (auto &pid : spawned_children) {

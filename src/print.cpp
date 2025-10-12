@@ -49,11 +49,6 @@ namespace adaptyst {
       std::cout << "Copyright (C) CERN. Core licensed under GNU GPL v3." << std::endl;
       std::cout << std::endl;
     }
-
-    this->print("All logs are streamed to and saved inside the path below, "
-                "structured into entities -> nodes/edges -> modules.",
-                false, false);
-    this->print(this->log_dir.string(), true, false);
   }
 
   void Terminal::log(std::string message, Identifiable *source,
