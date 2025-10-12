@@ -270,6 +270,12 @@ namespace adaptyst {
     static const int ERROR_SETENV = 209;
 
     /**
+       Error exit code when a process exited non-gracefully, e.g.
+       due to a segmentation fault.
+    */
+    static const int ERROR_ABNORMAL_EXIT = 210;
+
+    /**
        Constructs a Process object.
 
        @param command  Function returning an exit code to execute in
@@ -699,7 +705,7 @@ namespace adaptyst {
         if (WIFEXITED(status)) {
           this->exit_code = WEXITSTATUS(status);
         } else {
-          this->exit_code = 255;
+          this->exit_code = ERROR_ABNORMAL_EXIT;
         }
 
         return this->exit_code;

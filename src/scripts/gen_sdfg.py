@@ -27,7 +27,7 @@ if (forked == 0) {
   } else if (WIFEXITED(status)) {
     code = WEXITSTATUS(status);
   } else {
-    code = 255;
+    code = 210;
   }
 }
 """, language=dtypes.Language.CPP,

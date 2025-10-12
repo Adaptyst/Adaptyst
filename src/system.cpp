@@ -1386,8 +1386,9 @@ namespace adaptyst {
               "The way of handling this "
               "is module-dependent.";
 
-            if (result == 255) {
-              msg += "\nHint: The exit code is 255, which may suggest that your workflow "
+            if (result == Process::ERROR_ABNORMAL_EXIT) {
+              msg += "\nHint: The exit code is " + std::to_string(Process::ERROR_ABNORMAL_EXIT) +
+                ", which may suggest that your workflow "
                 "has encountered an unrecoverable error, e.g. a segmentation fault.";
             }
 
