@@ -101,24 +101,24 @@ namespace adaptyst {
                    "adaptyst_<UTC timestamp>__<positive integer>)")
       ->option_text("TEXT");
 
-    std::string codes_dst = "";
-    app.add_option("-c,--codes", codes_dst, "Send the newline-separated list "
-                   "of detected source code files to a specified destination "
-                   "rather than pack the code files on the same entity where "
-                   "an analysed program is run. The value can be either "
-                   "\"file:<path>\" (i.e. the list is saved to <path> "
-                   "and can be then read e.g. by adaptyst-code) or "
-                   "\"fd:<number>\" (i.e. the list is written to a specified "
-                   "file descriptor).")
-      ->check([](const std::string &arg) -> std::string {
-        if (!std::regex_match(arg, std::regex("^(file\\:.+|fd:\\d+)$"))) {
-          return "The value must be in form of \"file:<path>\" or "
-            "\"fd:<number>\"";
-        }
+    // std::string codes_dst = "";
+    // app.add_option("-c,--codes", codes_dst, "Send the newline-separated list "
+    //                "of detected source code files to a specified destination "
+    //                "rather than pack the code files on the same entity where "
+    //                "an analysed program is run. The value can be either "
+    //                "\"file:<path>\" (i.e. the list is saved to <path> "
+    //                "and can be then read e.g. by adaptyst-code) or "
+    //                "\"fd:<number>\" (i.e. the list is written to a specified "
+    //                "file descriptor).")
+    //   ->check([](const std::string &arg) -> std::string {
+    //     if (!std::regex_match(arg, std::regex("^(file\\:.+|fd:\\d+)$"))) {
+    //       return "The value must be in form of \"file:<path>\" or "
+    //         "\"fd:<number>\"";
+    //     }
 
-        return "";
-      })
-      ->option_text("TYPE[:ARG]");
+    //     return "";
+    //   })
+    //   ->option_text("TYPE[:ARG]");
 
     bool no_format = false;
     app.add_flag("--no-format", no_format, "Do not use any non-standard "
