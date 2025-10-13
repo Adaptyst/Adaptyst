@@ -1,4 +1,8 @@
 #!/bin/env python3
+
+# SPDX-FileCopyrightText: 2025 CERN
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 import sys
 import argparse
 import json
@@ -79,7 +83,7 @@ def run(paths_file, output, verbose):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         prog='adaptyst-code',
-        description='Profiled code packaging tool for Adaptyst',
+        description='Analysed code packaging tool for Adaptyst',
         formatter_class=argparse.RawTextHelpFormatter)
 
     parser.add_argument('paths_file', metavar='PATHS_FILE',

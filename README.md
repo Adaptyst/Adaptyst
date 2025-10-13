@@ -1,20 +1,25 @@
+<!--
+SPDX-FileCopyrightText: 2025 CERN
+SPDX-License-Identifier: CC-BY-4.0
+-->
+
 # Adaptyst
-[![License: GNU GPL v2 only](https://img.shields.io/badge/license-GNU%20GPL%20v2%20only-blue)]()
+[![License: GNU GPL v3](https://img.shields.io/badge/license-GNU%20GPL%20v3-blue)]()
 [![Version](https://img.shields.io/github/v/release/adaptyst/adaptyst?include_prereleases&label=version)](https://github.com/Adaptyst/Adaptyst/releases)
 
 A comprehensive and architecture-agnostic performance analysis tool (formerly AdaptivePerf).
 
 ## Disclaimer
-This is currently a dev version and the tool is under active development. The tests are limited at the moment and bugs are to be expected. Use at your own risk!
+This is currently a dev version and the tool is under active development. Bugs are to be expected. Use at your own risk!
 
 All feedback is welcome.
 
 ## License
 Copyright (C) CERN. 
 
-The project is distributed under the GNU GPL v2 license. See LICENSE for details. **Only version 2 of GNU GPL can be used!**
+The project is generally distributed under the GNU GPL v3 (or later version) license, with a few exceptions. See the individual files for the detailed licensing information.
 
-**A new modular version of Adaptyst is coming soon! It will have a different (still open-source and GPL-based) licensing arrangement than the current one.**
+If you want to develop a plugin or module for Adaptyst and you don't want it to be licensed under GNU GPL (e.g. because you want it to be closed-source), [contact us first](https://adaptyst.web.cern.ch/contact).
 
 ## Installation and documentation
 The installation instructions can be found at the Adaptyst website [here](https://adaptyst.web.cern.ch/install). Similarly, the user documentation can be found [here](https://adaptyst.web.cern.ch/docs/intro/welcome) along with pointers to the Doxygen documentation.

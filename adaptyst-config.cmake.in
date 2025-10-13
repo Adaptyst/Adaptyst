@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: 2025 CERN
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+@PACKAGE_INIT@
+
+set(ADAPTYST_MODULE_PATH "@PACKAGE_ADAPTYST_MODULE_PATH@")
+
+include("${CMAKE_CURRENT_LIST_DIR}/adaptyst-targets.cmake")
+
+find_package(nlohmann_json REQUIRED)
+find_package(Poco REQUIRED Net Foundation)
+find_package(LibArchive REQUIRED)

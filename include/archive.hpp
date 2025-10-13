@@ -1,14 +1,16 @@
-// Adaptyst: a performance analysis tool
-// Copyright (C) CERN. See LICENSE for details.
+// SPDX-FileCopyrightText: 2025 CERN
+// SPDX-License-Identifier: GPL-3.0-or-later
 
 #ifndef ARCHIVE_HPP_
 #define ARCHIVE_HPP_
 
-#include "server/socket.hpp"
+#include "adaptyst/socket.hpp"
 #include <filesystem>
 #include <istream>
 #include <archive.h>
 #include <archive_entry.h>
+#include <nlohmann/json.hpp>
+#include <unordered_set>
 
 namespace adaptyst {
   namespace fs = std::filesystem;

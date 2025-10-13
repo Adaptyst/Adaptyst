@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2025 CERN
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "external_pull_request_event" || $CI_PIPELINE_SOURCE == "web"
@@ -9,47 +12,47 @@ stages:
   - images
   - deploy
 
-compile-gentoo:
-  image:
-    name: gitlab-registry.cern.ch/adaptyst/gentoo-fp:latest
-  stage: build
-  before_script:
-    - emerge -g --quiet-build=y llvm-core/clang
-  script:
-    - mkdir build && cd build
-    - cmake $CI_PROJECT_DIR -G Ninja
-    - PATH=$PATH:$(dirname /usr/lib/llvm/*/bin/clang) cmake --build .
-    - cmake --install .
-    - cd .. && mkdir -p install/etc install/opt install/usr/local/bin install/usr/local/lib
-    - cp /etc/adaptyst.conf install/etc/
-    - cp -r /opt/adaptyst install/opt/
-    - cp /usr/local/bin/adaptyst* install/usr/local/bin/
-    - cp /usr/local/lib/libadaptystserv.so install/usr/local/lib/
-  artifacts:
-    paths:
-      - install
-    expire_in: 6 h
+# compile-gentoo:
+#   image:
+#     name: gitlab-registry.cern.ch/adaptyst/gentoo-fp:latest
+#   stage: build
+#   before_script:
+#     - emerge -g --quiet-build=y llvm-core/clang
+#   script:
+#     - mkdir build && cd build
+#     - cmake $CI_PROJECT_DIR -G Ninja
+#     - PATH=$PATH:$(dirname /usr/lib/llvm/*/bin/clang) cmake --build .
+#     - cmake --install .
+#     - cd .. && mkdir -p install/etc install/opt install/usr/local/bin install/usr/local/lib
+#     - cp /etc/adaptyst.conf install/etc/
+#     - cp -r /opt/adaptyst install/opt/
+#     - cp /usr/local/bin/adaptyst* install/usr/local/bin/
+#     - cp /usr/local/lib/libadaptystserv.so install/usr/local/lib/
+#   artifacts:
+#     paths:
+#       - install
+#     expire_in: 6 h
 
-compile-alma9:
-  image:
-    name: gitlab-registry.cern.ch/adaptyst/alma9-fp:latest
-  stage: build
-  before_script:
-    - dnf install -y git cmake numactl-devel cli11-devel json-devel poco-devel boost-devel libarchive-devel clang libtraceevent-devel flex bison elfutils-libelf-devel ninja-build
-  script:
-    - mkdir build && cd build
-    - cmake $CI_PROJECT_DIR -G Ninja
-    - cmake --build .
-    - cmake --install . --prefix /usr
-    - cd .. && mkdir -p install/etc install/opt install/usr/bin install/usr/lib
-    - cp /etc/adaptyst.conf install/etc/
-    - cp -r /opt/adaptyst install/opt/
-    - cp /usr/bin/adaptyst* install/usr/bin/
-    - cp /usr/lib/libadaptystserv.so install/usr/lib/
-  artifacts:
-    paths:
-      - install
-    expire_in: 6 h
+# compile-alma9:
+#   image:
+#     name: gitlab-registry.cern.ch/adaptyst/alma9-fp:latest
+#   stage: build
+#   before_script:
+#     - dnf install -y git cmake numactl-devel cli11-devel json-devel poco-devel boost-devel libarchive-devel clang libtraceevent-devel flex bison elfutils-libelf-devel ninja-build
+#   script:
+#     - mkdir build && cd build
+#     - cmake $CI_PROJECT_DIR -G Ninja
+#     - cmake --build .
+#     - cmake --install . --prefix /usr
+#     - cd .. && mkdir -p install/etc install/opt install/usr/bin install/usr/lib
+#     - cp /etc/adaptyst.conf install/etc/
+#     - cp -r /opt/adaptyst install/opt/
+#     - cp /usr/bin/adaptyst* install/usr/bin/
+#     - cp /usr/lib/libadaptystserv.so install/usr/lib/
+#   artifacts:
+#     paths:
+#       - install
+#     expire_in: 6 h
 
 doxygen-test:
   image:
@@ -67,89 +70,88 @@ doxygen-test:
       - docs/html
     expire_in: 6 h
 
-pages:
+doxygen-deploy:
   stage: deploy
   dependencies:
     - doxygen-test
+  image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer:latest
   rules:
     - if: $CI_COMMIT_TAG != null
   script:
     - mv docs/html public
-  artifacts:
-    paths:
-      - public
+    - deploy-eos
 
-# Based on https://gitlab.cern.ch/gitlabci-examples/build_docker_image/-/blob/master/.gitlab-ci.yml
-make-gentoo-docker-image:
-  image:
-    name: gcr.io/kaniko-project/executor:debug
-    entrypoint: [""]
-  stage: images
-  dependencies: []
-  script:
-    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_DEPLOY_USER\",\"password\":\"$CI_DEPLOY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - |
-      if [[ "$CI_COMMIT_TAG" != "" ]]; then
-        export IMAGE_DESTINATION=$CI_REGISTRY/adaptyst/adaptyst:latest
-        export IMAGE_DESTINATION_DETAILED=$CI_REGISTRY/adaptyst/adaptyst:$CI_COMMIT_TAG
-        /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination $IMAGE_DESTINATION --destination $IMAGE_DESTINATION_DETAILED
-        echo "Image pushed successfully to ${IMAGE_DESTINATION} and ${IMAGE_DESTINATION_DETAILED}"
-      else
-        /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --no-push
-        echo "Image built successfully"
-      fi
+# # Based on https://gitlab.cern.ch/gitlabci-examples/build_docker_image/-/blob/master/.gitlab-ci.yml
+# make-gentoo-docker-image:
+#   image:
+#     name: gcr.io/kaniko-project/executor:debug
+#     entrypoint: [""]
+#   stage: images
+#   dependencies: []
+#   script:
+#     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_DEPLOY_USER\",\"password\":\"$CI_DEPLOY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+#     - |
+#       if [[ "$CI_COMMIT_TAG" != "" ]]; then
+#         export IMAGE_DESTINATION=$CI_REGISTRY/adaptyst/adaptyst:latest
+#         export IMAGE_DESTINATION_DETAILED=$CI_REGISTRY/adaptyst/adaptyst:$CI_COMMIT_TAG
+#         /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination $IMAGE_DESTINATION --destination $IMAGE_DESTINATION_DETAILED
+#         echo "Image pushed successfully to ${IMAGE_DESTINATION} and ${IMAGE_DESTINATION_DETAILED}"
+#       else
+#         /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --no-push
+#         echo "Image built successfully"
+#       fi
 
-# Based on https://gitlab.cern.ch/gitlabci-examples/build_docker_image/-/blob/master/.gitlab-ci.yml
-make-alma9-docker-image:
-  image:
-    name: gcr.io/kaniko-project/executor:debug
-    entrypoint: [""]
-  stage: images
-  dependencies: []
-  script:
-    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_DEPLOY_USER\",\"password\":\"$CI_DEPLOY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - |
-      if [[ "$CI_COMMIT_TAG" != "" ]]; then
-        export IMAGE_DESTINATION=$CI_REGISTRY/adaptyst/adaptyst:alma9-latest
-        export IMAGE_DESTINATION_DETAILED=$CI_REGISTRY/adaptyst/adaptyst:alma9-$CI_COMMIT_TAG
-        /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-alma9 --destination $IMAGE_DESTINATION --destination $IMAGE_DESTINATION_DETAILED
-        echo "Image pushed successfully to ${IMAGE_DESTINATION} and ${IMAGE_DESTINATION_DETAILED}"
-      else
-        /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-alma9 --no-push
-        echo "Image built successfully"
-      fi
+# # Based on https://gitlab.cern.ch/gitlabci-examples/build_docker_image/-/blob/master/.gitlab-ci.yml
+# make-alma9-docker-image:
+#   image:
+#     name: gcr.io/kaniko-project/executor:debug
+#     entrypoint: [""]
+#   stage: images
+#   dependencies: []
+#   script:
+#     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_DEPLOY_USER\",\"password\":\"$CI_DEPLOY_PASSWORD\"}}}" > /kaniko/.docker/config.json
+#     - |
+#       if [[ "$CI_COMMIT_TAG" != "" ]]; then
+#         export IMAGE_DESTINATION=$CI_REGISTRY/adaptyst/adaptyst:alma9-latest
+#         export IMAGE_DESTINATION_DETAILED=$CI_REGISTRY/adaptyst/adaptyst:alma9-$CI_COMMIT_TAG
+#         /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-alma9 --destination $IMAGE_DESTINATION --destination $IMAGE_DESTINATION_DETAILED
+#         echo "Image pushed successfully to ${IMAGE_DESTINATION} and ${IMAGE_DESTINATION_DETAILED}"
+#       else
+#         /kaniko/executor --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile-alma9 --no-push
+#         echo "Image built successfully"
+#       fi
 
-make-apptainer-images:
-  tags:
-    - gentoo
-  stage: images
-  dependencies: []
-  before_script:
-    - echo $KERBEROS_PASSWORD | kinit ${KERBEROS_USER}@CERN.CH
-  script:
-    - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" --build-arg registry="$CI_REGISTRY" adaptyst.sif $CI_PROJECT_DIR/apptainer.def
-    - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" --build-arg registry="$CI_REGISTRY" adaptyst-alma9.sif $CI_PROJECT_DIR/apptainer-alma9.def
-    - |
-      if [[ "$CI_COMMIT_TAG" != "" ]]; then
-        xrdcp -C auto --rm-bad-cksum -t 5 adaptyst.sif root://eosuser.cern.ch/$WEB_STORAGE/apptainer/adaptyst-$CI_COMMIT_TAG.sif
-        xrdcp -C auto --rm-bad-cksum -t 5 adaptyst-alma9.sif root://eosuser.cern.ch/$WEB_STORAGE/apptainer/adaptyst-alma9-$CI_COMMIT_TAG.sif
-      fi
-  after_script:
-    - rm -f adaptyst.sif adaptyst-alma9.sif
-    - kdestroy -A
+# make-apptainer-images:
+#   tags:
+#     - gentoo
+#   stage: images
+#   dependencies: []
+#   before_script:
+#     - echo $KERBEROS_PASSWORD | kinit ${KERBEROS_USER}@CERN.CH
+#   script:
+#     - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" --build-arg registry="$CI_REGISTRY" adaptyst.sif $CI_PROJECT_DIR/apptainer.def
+#     - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" --build-arg registry="$CI_REGISTRY" adaptyst-alma9.sif $CI_PROJECT_DIR/apptainer-alma9.def
+#     - |
+#       if [[ "$CI_COMMIT_TAG" != "" ]]; then
+#         xrdcp -C auto --rm-bad-cksum -t 5 adaptyst.sif root://eosuser.cern.ch/$WEB_STORAGE/apptainer/adaptyst-$CI_COMMIT_TAG.sif
+#         xrdcp -C auto --rm-bad-cksum -t 5 adaptyst-alma9.sif root://eosuser.cern.ch/$WEB_STORAGE/apptainer/adaptyst-alma9-$CI_COMMIT_TAG.sif
+#       fi
+#   after_script:
+#     - rm -f adaptyst.sif adaptyst-alma9.sif
+#     - kdestroy -A
 
-deploy-to-syclops-gentoo-profiling:
-  tags:
-    - gentoo-profiling
-  stage: deploy
-  dependencies: []
-  rules:
-    - if: $CI_COMMIT_TAG != null
-  script:
-    - mkdir build && cd build
-    - cmake $CI_PROJECT_DIR -G Ninja
-    - cmake --build .
-    - sudo cmake --install .
-    - sudo setcap cap_perfmon,cap_bpf,cap_ipc_lock,cap_syslog+ep /opt/adaptyst/perf/bin/perf
-  after_script:
-    - sudo rm -rf build
+# deploy-to-syclops-gentoo-profiling:
+#   tags:
+#     - gentoo-profiling
+#   stage: deploy
+#   dependencies: []
+#   rules:
+#     - if: $CI_COMMIT_TAG != null
+#   script:
+#     - mkdir build && cd build
+#     - cmake $CI_PROJECT_DIR -G Ninja
+#     - cmake --build .
+#     - sudo cmake --install .
+#     - sudo setcap cap_perfmon,cap_bpf,cap_ipc_lock,cap_syslog+ep /opt/adaptyst/perf/bin/perf
+#   after_script:
+#     - sudo rm -rf build
