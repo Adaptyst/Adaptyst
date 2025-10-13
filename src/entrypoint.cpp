@@ -146,7 +146,7 @@ namespace adaptyst {
 
     std::vector<std::string> command_parts;
     std::vector<std::string> command_elements;
-    app.add_option("COMMAND/PATH", command_parts, "Path to a YAML file defining a "
+    app.add_option("COMMAND/PATH", command_parts, "Path to a "
                    "workflow to be analysed (required). If -d is set, a command "
                    "to be analysed should be provided instead.")
       ->check([&call_split_unix, &command_elements, &is_command](const std::string &arg) {
@@ -372,7 +372,11 @@ namespace adaptyst {
       std::cerr << std::endl;
       return 1;
     } else if (command_elements.empty()) {
-      std::cerr << "A YAML file defining a workflow to be analysed is required!";
+      std::cerr << "A workflow to be analysed is required!";
+      std::cerr << std::endl;
+      return 1;
+    } else if (!is_command) {
+      std::cerr << "Only analysing commands is supported at the moment, please use -d.";
       std::cerr << std::endl;
       return 1;
     }
