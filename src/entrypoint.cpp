@@ -129,7 +129,9 @@ namespace adaptyst {
       "configuration files, set the environment variables ADAPTYST_CONFIG and\n"
       "ADAPTYST_LOCAL_CONFIG respectively to values of your choice. Similarly,\n"
       "you can set the ADAPTYST_MODULE_DIR environment variable to change the path\n"
-      "where Adaptyst looks for workflow plugins and system modules.";
+      "where Adaptyst looks for workflow plugins and system modules. You can also\n"
+      "set ADAPTYST_MISC_DIR to change the path where Adaptyst looks for its support\n"
+      "files.";
 
     app.footer(footer);
 
