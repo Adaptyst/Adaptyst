@@ -405,7 +405,7 @@ namespace adaptyst {
                system like Linux).
     */
     int start(bool wait_for_notify, const CPUConfig &cpu_config,
-              bool is_profiler, fs::path working_path = fs::current_path()) {
+              bool is_analysis, fs::path working_path = fs::current_path()) {
       if (wait_for_notify) {
         this->notifiable = true;
       }
@@ -555,7 +555,7 @@ namespace adaptyst {
           env[env_entries.size()] = nullptr;
 
           if (cpu_config.is_valid()) {
-            cpu_set_t affinity = is_profiler ? cpu_config.get_cpu_analysis_set() :
+            cpu_set_t affinity = is_analysis ? cpu_config.get_cpu_analysis_set() :
               cpu_config.get_cpu_workflow_set();
 
             if (sched_setaffinity(0, sizeof(affinity), &affinity) == -1) {
