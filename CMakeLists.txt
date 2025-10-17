@@ -119,8 +119,6 @@ target_link_libraries(adaptyst-bin PUBLIC CLI11::CLI11)
 target_link_libraries(adaptyst-bin PUBLIC Boost::headers Boost::program_options $<TARGET_NAME_IF_EXISTS:Boost::process>)
 target_link_libraries(adaptyst-bin PUBLIC pybind11::embed)
 
-target_include_directories(adaptyst-bin PUBLIC
-  ${CMAKE_SOURCE_DIR}/src/cmd)
 target_include_directories(adaptyst-bin PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 target_include_directories(adaptyst PUBLIC ${Boost_INCLUDE_DIRS})
