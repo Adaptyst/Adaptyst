@@ -151,6 +151,7 @@ namespace adaptyst {
     bool writable;
     unsigned int buf_size;
     int exit_code;
+    std::function<void()> notify_callback;
 #ifdef ADAPTYST_UNIX
     int notify_pipe[2];
     int stdin_pipe[2];
@@ -281,29 +282,37 @@ namespace adaptyst {
     /**
        Constructs a Process object.
 
-       @param command  Function returning an exit code to execute in
-                       a separate process.
-       @param buf_size Internal buffer size in bytes.
+       @param command         Function returning an exit code to execute in
+                              a separate process.
+       @param notify_callback Function to run when Process::notify()
+                              is called.
+       @param buf_size        Internal buffer size in bytes.
     */
     Process(std::function<int()> command,
+            std::function<void()> notify_callback = [](){},
             unsigned int buf_size = 1024) {
       this->command = command;
+      this->notify_callback = notify_callback;
       this->init(buf_size);
     }
 
     /**
        Constructs a Process object.
 
-       @param command  Shell command to execute in a separate process.
-       @param buf_size Internal buffer size in bytes.
+       @param command         Shell command to execute in a separate process.
+       @param notify_callback Function to run when Process::notify()
+                              is called.
+       @param buf_size        Internal buffer size in bytes.
     */
     Process(std::vector<std::string> &command,
+            std::function<void()> notify_callback = [](){},
             unsigned int buf_size = 1024) {
       if (command.empty()) {
         throw Process::EmptyCommandException();
       }
 
       this->command = command;
+      this->notify_callback = notify_callback;
       this->init(buf_size);
     }
 
@@ -633,6 +642,7 @@ namespace adaptyst {
     void notify() {
       if (this->started) {
         if (this->notifiable) {
+          this->notify_callback();
 #ifdef ADAPTYST_UNIX
           FileDescriptor notify_writer(nullptr, this->notify_pipe,
                                        this->buf_size);

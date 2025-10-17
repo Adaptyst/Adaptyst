@@ -193,8 +193,8 @@ namespace adaptyst {
     void add_module(std::unique_ptr<Module> &mod);
     void profile_notify();
     int profile_wait();
-    bool get_will_profile();
-    void set_will_profile(bool will_profile);
+    int get_modules_profiling();
+    void inc_modules_profiling();
     void set_dir(fs::path path);
     std::vector<std::string> get_log_types();
     std::string get_type();
@@ -213,7 +213,8 @@ namespace adaptyst {
     std::unordered_set<std::string> tags;
     std::unordered_set<std::string> in_tags;
     std::unordered_set<std::string> out_tags;
-    bool will_profile;
+    int modules_profiling;
+    std::mutex modules_profiling_mutex;
   };
 
   class NodeConnection : public Identifiable {
@@ -280,13 +281,15 @@ namespace adaptyst {
     fs::path tmp_dir;
     std::string cpu_mask;
     std::string sdfg;
-    bool will_profile;
     std::unique_ptr<Process> profiled_process;
     std::unordered_set<fs::path> src_code_paths;
     bool src_code_paths_collected;
     bool workflow_finish_printed;
     long long workflow_start_time;
     std::mutex workflow_finish_print_mutex;
+    std::mutex profile_notify_mutex;
+    int modules_notified;
+    int modules_profiling;
   };
 
   class System {

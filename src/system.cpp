@@ -873,7 +873,7 @@ namespace adaptyst {
     this->will_profile = will_profile;
 
     if (will_profile) {
-      this->node->set_will_profile(will_profile);
+      this->node->inc_modules_profiling();
     }
   }
 
@@ -991,6 +991,7 @@ namespace adaptyst {
   Node::Node(std::string name,
              std::shared_ptr<Entity> &entity) : Identifiable(name) {
     this->entity = entity;
+    this->modules_profiling = 0;
   }
 
   bool Node::init() {
@@ -1077,12 +1078,12 @@ namespace adaptyst {
     this->modules.push_back(std::move(mod));
   }
 
-  bool Node::get_will_profile() {
-    return this->will_profile;
+  int Node::get_modules_profiling() {
+    return this->modules_profiling;
   }
 
-  void Node::set_will_profile(bool will_profile) {
-    this->will_profile = will_profile;
+  void Node::inc_modules_profiling() {
+    this->modules_profiling++;
   }
 
   void Node::set_dir(fs::path path) {
@@ -1170,6 +1171,8 @@ namespace adaptyst {
     this->tmp_dir = tmp_dir;
     this->src_code_paths_collected = false;
     this->workflow_finish_printed = false;
+    this->modules_notified = 0;
+    this->modules_profiling = 0;
   }
 
   void Entity::add_node(std::shared_ptr<Node> &node) {
@@ -1217,14 +1220,12 @@ namespace adaptyst {
     for (auto entry : this->nodes) {
       entry.second->init();
 
-      if (entry.second->get_will_profile()) {
-        this->will_profile = true;
-      }
+      this->modules_profiling += entry.second->get_modules_profiling();
     }
   }
 
   void Entity::process(bool save_src_code_paths) {
-    if (this->will_profile && this->access_mode != CUSTOM &&
+    if (this->modules_profiling > 0 && this->access_mode != CUSTOM &&
         this->access_mode != CUSTOM_REMOTE) {
       if (this->access_mode == REMOTE) {
         py::initialize_interpreter();
@@ -1243,6 +1244,11 @@ namespace adaptyst {
       if (this->access_mode == REMOTE) {
         py::finalize_interpreter();
       }
+
+      fs::path stdout_path =
+        fs::path(Terminal::instance->get_log_dir()) / (this->get_name() + "_stdout.log");
+      fs::path stderr_path =
+        fs::path(Terminal::instance->get_log_dir()) / (this->get_name() + "_stderr.log");
 
       this->profiled_process = std::make_unique<Process>([sdfg_lib_path]() {
         void *handle = dlopen(sdfg_lib_path.c_str(), RTLD_LAZY);
@@ -1278,12 +1284,15 @@ namespace adaptyst {
         exit(sdfg_handle);
 
         return exit_code;
-      });
+      }, [this, stdout_path, stderr_path]() {
+        this->workflow_start_time = ch::duration_cast<ch::milliseconds>(ch::system_clock::now().time_since_epoch()).count();
 
-      fs::path stdout_path =
-        fs::path(Terminal::instance->get_log_dir()) / (this->get_name() + "_stdout.log");
-      fs::path stderr_path =
-        fs::path(Terminal::instance->get_log_dir()) / (this->get_name() + "_stderr.log");
+        Terminal::instance->print("The workflow has just been started in entity " +
+                                  this->get_name() + ". "
+                                  "You can check its stdout and stderr in real time here:\n" +
+                                  stdout_path.string() + "\n" + stderr_path.string(),
+                                  true, false);
+      });
 
       this->profiled_process->set_redirect_stdout(stdout_path);
       this->profiled_process->set_redirect_stderr(stderr_path);
@@ -1291,13 +1300,6 @@ namespace adaptyst {
       this->profiling_info.type = LINUX_PROCESS;
       this->profiling_info.data.pid = this->profiled_process->start(
           true, CPUConfig(this->get_cpu_mask()), false);
-
-      this->workflow_start_time = ch::duration_cast<ch::milliseconds>(ch::system_clock::now().time_since_epoch()).count();
-
-      Terminal::instance->print("Workflow has been started in entity " + this->get_name() + ". "
-                                "You can check its stdout and stderr in real time by looking at:\n" +
-                                stdout_path.string() + "\n" + stderr_path.string(),
-                                true, false);
     }
 
     for (auto entry : this->nodes) {
@@ -1355,7 +1357,13 @@ namespace adaptyst {
 
   void Entity::profile_notify() {
     if (this->profiled_process) {
-      this->profiled_process->notify();
+      std::unique_lock lock(this->profile_notify_mutex);
+
+      this->modules_notified++;
+
+      if (this->modules_notified == this->modules_profiling) {
+        this->profiled_process->notify();
+      }
     }
   }
 
