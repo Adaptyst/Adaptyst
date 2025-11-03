@@ -9,18 +9,11 @@
 #include <fstream>
 #include <dlfcn.h>
 #include <pybind11/embed.h>
+#include <regex>
+#include <time.h>
 
 // The code segment below is for the C hardware module API.
-inline adaptyst::Module *get(amod_t id) {
-  if (adaptyst::Module::all_modules.find(id) ==
-      adaptyst::Module::all_modules.end()) {
-    return nullptr;
-  }
-
-  return adaptyst::Module::all_modules[id];
-}
-
-inline void set_error(adaptyst::Module *module, int code) {
+inline void set_error(adaptyst::Module *mod, int code) {
   std::string msg;
 
   switch (code) {
@@ -49,13 +42,32 @@ inline void set_error(adaptyst::Module *module, int code) {
     msg = "This API method can be called only inside "
       "adaptyst_module_init()";
     break;
+
+  case ADAPTYST_ERR_TIMEOUT:
+    msg = "Timeout";
+    break;
   }
 
-  module->set_api_error(msg, code);
+  mod->set_api_error(msg, code);
 }
 
-inline void set_error(adaptyst::Module *module, std::string msg, int code) {
-  module->set_api_error(msg, code);
+inline void set_error(adaptyst::Module *mod, std::string msg, int code) {
+  mod->set_api_error(msg, code);
+}
+
+inline adaptyst::Module *get(amod_t id, bool reset_error = true) {
+  if (adaptyst::Module::all_modules.find(id) ==
+      adaptyst::Module::all_modules.end()) {
+    return nullptr;
+  }
+
+  if (reset_error) {
+    auto to_return = adaptyst::Module::all_modules[id];
+    set_error(to_return, ADAPTYST_OK);
+    return to_return;
+  } else {
+    return adaptyst::Module::all_modules[id];
+  }
 }
 
 extern "C" {
@@ -114,6 +126,125 @@ extern "C" {
     }
 
     return path.c_str();
+  }
+
+  bool adaptyst_send_data(amod_t id, char *buf, unsigned int n) {
+    auto mod = get(id);
+
+    if (!mod) {
+      return false;
+    }
+
+    try {
+      mod->get_fd()->write(n, buf);
+      return true;
+    } catch (std::exception &e) {
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      return false;
+    }
+  }
+
+  bool adaptyst_receive_data(amod_t id, char *buf, unsigned int buf_size,
+                             int *n) {
+    auto mod = get(id);
+
+    if (!mod) {
+      return false;
+    }
+
+    try {
+      *n = mod->get_fd()->read(buf, buf_size, NO_TIMEOUT);
+      return true;
+    } catch (std::exception &e) {
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      return false;
+    }
+  }
+
+  bool adaptyst_receive_data_timeout(amod_t id, char *buf, unsigned int buf_size,
+                                     int *n, long timeout_seconds) {
+    auto mod = get(id);
+
+    if (!mod) {
+      return false;
+    }
+
+    try {
+      *n = mod->get_fd()->read(buf, buf_size, timeout_seconds);
+      return true;
+    } catch (adaptyst::TimeoutException &e) {
+      set_error(mod, ADAPTYST_ERR_TIMEOUT);
+      return false;
+    } catch (std::exception &e) {
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      return false;
+    }
+  }
+
+  bool adaptyst_send_string(amod_t id, const char *str) {
+    auto mod = get(id);
+
+    if (!mod) {
+      return false;
+    }
+
+    try {
+      mod->get_fd()->write(std::string(str), true);
+      return true;
+    } catch (std::exception &e) {
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      return false;
+    }
+  }
+
+  bool adaptyst_receive_string(amod_t id, const char **str) {
+    auto mod = get(id);
+
+    if (!mod) {
+      return false;
+    }
+
+    try {
+      std::string &received = mod->receive_string_inject();
+
+      if (received.empty()) {
+        *str = NULL;
+      } else {
+        *str = received.c_str();
+      }
+
+      return true;
+    } catch (std::exception &e) {
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      return false;
+    }
+  }
+
+  bool adaptyst_receive_string_timeout(amod_t id, const char **str,
+                                       long timeout_seconds) {
+    auto mod = get(id);
+
+    if (!mod) {
+      return false;
+    }
+
+    try {
+      std::string &received = mod->receive_string_inject(timeout_seconds);
+
+      if (received.empty()) {
+        *str = NULL;
+      } else {
+        *str = received.c_str();
+      }
+
+      return true;
+    } catch (adaptyst::TimeoutException &e) {
+      set_error(mod, ADAPTYST_ERR_TIMEOUT);
+      return false;
+    } catch (std::exception &e) {
+      set_error(mod, std::string(e.what()), ADAPTYST_ERR_EXCEPTION);
+      return false;
+    }
   }
 
   const char *adaptyst_get_node_name(amod_t id) {
@@ -372,7 +503,7 @@ extern "C" {
   }
 
   const char *adaptyst_get_internal_error_msg(amod_t id) {
-    auto mod = get(id);
+    auto mod = get(id, false);
 
     if (!mod) {
       return "Module not found";
@@ -382,13 +513,91 @@ extern "C" {
   }
 
   int adaptyst_get_internal_error_code(amod_t id) {
-    auto mod = get(id);
+    auto mod = get(id, false);
 
     if (!mod) {
       return ADAPTYST_ERR_MODULE_NOT_FOUND;
     }
 
     return mod->get_api_error_code();
+  }
+
+  unsigned long long adaptyst_get_timestamp(amod_t id) {
+    auto mod = get(id);
+
+    if (!mod) {
+      return 0;
+    }
+
+    struct timespec ts;
+
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1) {
+      set_error(mod, ADAPTYST_ERR_TIMESTAMP);
+      return 0;
+    }
+
+    return ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+  }
+
+  unsigned long long adaptyst_get_workflow_start_time(amod_t id) {
+    auto mod = get(id);
+
+    if (!mod) {
+      return 0;
+    }
+
+    if (!mod->is_workflow_ever_run()) {
+      set_error(mod, ADAPTYST_ERR_WORKFLOW_NOT_STARTED);
+      return 0;
+    }
+
+    bool err;
+    unsigned long long timestamp = mod->get_workflow_start_time(err);
+
+    if (err) {
+      set_error(mod, ADAPTYST_ERR_TIMESTAMP);
+      return 0;
+    }
+
+    return timestamp;
+  }
+
+  unsigned long long adaptyst_get_workflow_end_time(amod_t id) {
+    auto mod = get(id);
+
+    if (!mod) {
+      return 0;
+    }
+
+    if (!mod->is_workflow_ever_run()) {
+      set_error(mod, ADAPTYST_ERR_WORKFLOW_NOT_STARTED);
+      return 0;
+    }
+
+    if (mod->is_workflow_running()) {
+      set_error(mod, ADAPTYST_ERR_WORKFLOW_RUNNING);
+      return 0;
+    }
+
+    bool err;
+    unsigned long long timestamp = mod->get_workflow_end_time(err);
+
+    if (err) {
+      set_error(mod, ADAPTYST_ERR_TIMESTAMP);
+      return 0;
+    }
+
+    return timestamp;
+  }
+
+  bool adaptyst_is_workflow_running(amod_t id) {
+    auto mod = get(id);
+
+    if (!mod) {
+      return false;
+    }
+
+    return mod->is_workflow_running();
   }
 }
 // The C hardware module API code segment ends here.
@@ -497,13 +706,15 @@ namespace adaptyst {
                  fs::path library_path) : Identifiable(backend_name) {
     std::unordered_map<std::string, std::string> options;
     std::unordered_map<std::string, std::vector<std::string>> array_options;
-    this->construct(backend_name, options, array_options, library_path, true);
+    this->construct(backend_name, options, array_options, library_path, true, false);
   }
 
   Module::Module(std::string backend_name, std::unordered_map<std::string, std::string> &options,
                  std::unordered_map<std::string, std::vector<std::string>> &array_options,
-                 fs::path library_path, bool never_directing) : Identifiable(backend_name) {
-    this->construct(backend_name, options, array_options, library_path, never_directing);
+                 fs::path library_path, bool never_directing,
+                 bool no_inject) : Identifiable(backend_name) {
+    this->construct(backend_name, options, array_options, library_path, never_directing,
+                    no_inject);
   }
 
   Module::~Module() {
@@ -517,7 +728,7 @@ namespace adaptyst {
   void Module::construct(std::string backend_name,
                          std::unordered_map<std::string, std::string> &options,
                          std::unordered_map<std::string, std::vector<std::string>> &array_options,
-                         fs::path library_path, bool never_directing) {
+                         fs::path library_path, bool never_directing, bool no_inject) {
     this->api_error_code = ADAPTYST_OK;
     this->api_error_msg = "OK, no errors";
 
@@ -789,14 +1000,59 @@ namespace adaptyst {
 
     const char **log_types =
       (const char **)dlsym(this->handle, "log_types");
+    this->log_types = {"General"};
 
     if (log_types) {
       for (int i = 0; log_types[i]; i++) {
         this->log_types.push_back(std::string(log_types[i]));
       }
-    } else {
-      this->log_types = {"General"};
     }
+
+    fs::path inject_lib_path = library_path / backend_name / ("lib" + backend_name + "_inject.so");
+
+    if (fs::exists(inject_lib_path)) {
+      this->inject_lib_path = inject_lib_path;
+      this->injection_available = true;
+    } else {
+      this->injection_available = false;
+    }
+
+    // False until process injection mechanism is implemented (including
+    // the commented code immediately below, subject to change)
+    this->injecting_process = false;
+
+    // if (this->injection_available) {
+    //   bool *inject_defined_ptr =
+    //     (bool *)dlsym(this->handle, "inject_defined");
+
+    //   if (inject_defined_ptr && *inject_defined_ptr) {
+    //     this->inject_lib_path = library_path / backend_name / ("lib" + backend_name + "_inject.so");
+    //     void *inject_handle = dlopen(this->inject_lib_path.c_str(), RTLD_LAZY);
+
+    //     if (!inject_handle) {
+    //       this->throw_error("Could not load the injection part of the module! " +
+    //                         std::string(dlerror()));
+    //     }
+
+    //     bool *inject_required_ptr =
+    //       (bool *)dlsym(inject_handle, "required");
+
+    //     if (!inject_required_ptr) {
+    //       this->throw_error("The injection part of the module doesn't define "
+    //                         "\"required\"!");
+    //     }
+
+    //     if (*inject_required_ptr && no_inject) {
+    //       this->throw_error("--no-inject is not supported by the module!");
+    //     }
+
+    //     this->injecting_process = !no_inject;
+    //   } else {
+    //     this->injecting_process = false;
+    //   }
+    // } else {
+    //   this->injecting_process = false;
+    // }
 
     this->never_directing = never_directing;
     this->id = Module::next_module_id++;
@@ -806,16 +1062,32 @@ namespace adaptyst {
     Module::all_modules[this->id] = this;
   }
 
-  bool Module::init() {
+  bool Module::init(unsigned int buf_size) {
     this->initialising = true;
 
     bool (*init_func)(amod_t) =
-      (bool (*)(amod_t))dlsym(this->handle, "_adaptyst_module_init");
+      (bool (*)(amod_t))dlsym(this->handle, "adaptyst_module_init");
 
     if (!init_func) {
-      this->throw_error("Module \"" + this->get_name() + "\" doesn't define _adaptyst_module_init()! "
+      this->throw_error("Module \"" + this->get_name() + "\" doesn't define adaptyst_module_init()! "
                         "Has it been compiled correctly?");
     }
+
+    int read_fd[2];
+    int write_fd[2];
+
+    if (pipe(read_fd) == -1) {
+      this->throw_error("pipe() failed for read_fd, error " + std::to_string(errno));
+    }
+
+    if (pipe(write_fd) == -1) {
+      ::close(read_fd[0]);
+      ::close(read_fd[1]);
+
+      this->throw_error("pipe() failed for write_fd, error " + std::to_string(errno));
+    }
+
+    this->fd = std::make_shared<FileDescriptor>(read_fd, write_fd, buf_size);
 
     bool result = init_func(this->id);
 
@@ -830,16 +1102,17 @@ namespace adaptyst {
   }
 
   void Module::process(std::string sdfg) {
-    bool (*process_func)(const char *) = (bool (*)(const char *))dlsym(this->handle,
-                                                                       "adaptyst_module_process");
+    bool (*process_func)(amod_t, const char *) =
+      (bool (*)(amod_t, const char *))dlsym(this->handle,
+                                            "adaptyst_module_process");
 
     if (!process_func) {
       this->throw_error("Module \"" + this->get_name() + "\" doesn't define adaptyst_module_process()! "
                         "Has it been compiled correctly?");
     }
 
-    this->process_future = std::async([process_func, sdfg]() {
-      return process_func(sdfg.c_str());
+    this->process_future = std::async([this, process_func, sdfg]() {
+      return process_func(this->id, sdfg.c_str());
     });
   }
 
@@ -858,15 +1131,15 @@ namespace adaptyst {
       return;
     }
 
-    void (*close)() = (void (*)())dlsym(this->handle,
-                                        "adaptyst_module_close");
+    void (*close)(amod_t) = (void (*)(amod_t))dlsym(this->handle,
+                                                    "adaptyst_module_close");
 
     if (!close) {
       this->throw_error("Module \"" + this->get_name() + "\" doesn't define adaptyst_module_close()! "
                         "Has it been compiled correctly?");
     }
 
-    close();
+    close(this->id);
   }
 
   void Module::set_will_profile(bool will_profile) {
@@ -988,15 +1261,68 @@ namespace adaptyst {
     return this->src_code_paths;
   }
 
+  bool Module::is_injection_available() {
+    return this->injection_available;
+  }
+
+  fs::path Module::get_inject_lib_path() {
+    return this->inject_lib_path;
+  }
+
+  amod_t Module::get_id() {
+    return this->id;
+  }
+
+  std::shared_ptr<FileDescriptor> Module::get_fd() {
+    return this->fd;
+  }
+
+  std::string &Module::receive_string_inject(long timeout_seconds) {
+    this->last_received_message_inject = this->fd->read(timeout_seconds);
+    return this->last_received_message_inject;
+  }
+
+  bool Module::is_workflow_running() {
+    return this->node->is_workflow_running();
+  }
+
+  bool Module::is_workflow_ever_run() {
+    return this->node->is_workflow_ever_run();
+  }
+
+  unsigned long long Module::get_workflow_start_time(bool &err) {
+    return this->node->get_workflow_start_time(err);
+  }
+
+  unsigned long long Module::get_workflow_end_time(bool &err) {
+    return this->node->get_workflow_end_time(err);
+  }
+
+  void Module::region_switch(std::string name, std::string part_id,
+                             std::string state, std::string timestamp_str) {
+    bool (*func_switch)(amod_t, const char *, const char *, const char *) =
+      (bool (*)(amod_t, const char *, const char *, const char *))dlsym(this->handle,
+                                                                        ("adaptyst_region_" + state).c_str());
+
+    if (!func_switch) {
+      return;
+    }
+
+    if (!func_switch(this->id, name.c_str(), part_id.c_str(),
+                     timestamp_str.c_str())) {
+      Terminal::instance->print(this->error, true, true, this, "General");
+    }
+  }
+
   Node::Node(std::string name,
              std::shared_ptr<Entity> &entity) : Identifiable(name) {
     this->entity = entity;
     this->modules_profiling = 0;
   }
 
-  bool Node::init() {
+  bool Node::init(unsigned int buf_size) {
     for (auto &mod : this->modules) {
-      if (!mod->init()) {
+      if (!mod->init(buf_size)) {
         return false;
       }
     }
@@ -1138,6 +1464,54 @@ namespace adaptyst {
     return "Node";
   }
 
+  std::vector<InjectPath> Node::get_module_inject_paths() {
+    std::vector<InjectPath> paths;
+
+    for (auto &module : this->modules) {
+      if (!module->is_injection_available()) {
+        continue;
+      }
+
+      auto read_fd = module->get_fd()->get_read_fd();
+      auto write_fd = module->get_fd()->get_write_fd();
+
+      InjectPath path = {
+        module->get_name(),
+        module->get_id(),
+        {read_fd.first, read_fd.second},
+        {write_fd.first, write_fd.second},
+        module->get_inject_lib_path()
+      };
+
+      paths.push_back(path);
+    }
+
+    return paths;
+  }
+
+  bool Node::is_workflow_running() {
+    return this->entity->is_workflow_running();
+  }
+
+  bool Node::is_workflow_ever_run() {
+    return this->entity->is_workflow_ever_run();
+  }
+
+  unsigned long long Node::get_workflow_start_time(bool &err) {
+    return this->entity->get_workflow_start_time(err);
+  }
+
+  unsigned long long Node::get_workflow_end_time(bool &err) {
+    return this->entity->get_workflow_end_time(err);
+  }
+
+  void Node::region_switch(std::string name, std::string part_id,
+                           std::string state, std::string timestamp_str) {
+    for (auto &mod : this->modules) {
+      mod->region_switch(name, part_id, state, timestamp_str);
+    }
+  }
+
   NodeConnection::NodeConnection(std::string id,
                                  std::shared_ptr<Node> &departure_node,
                                  std::shared_ptr<Node> &arrival_node) : Identifiable(id) {
@@ -1164,15 +1538,22 @@ namespace adaptyst {
   Entity::Entity(std::string id, AccessMode access_mode,
                  unsigned int processing_threads,
                  fs::path local_config_path,
-                 fs::path tmp_dir) : Identifiable(id) {
+                 fs::path tmp_dir, bool no_inject,
+                 unsigned int buf_size) : Identifiable(id) {
     this->access_mode = access_mode;
     this->processing_threads = processing_threads;
     this->local_config_path = local_config_path;
     this->tmp_dir = tmp_dir;
+    this->no_inject = no_inject;
+    this->buf_size = buf_size;
     this->src_code_paths_collected = false;
     this->workflow_finish_printed = false;
     this->modules_notified = 0;
     this->modules_profiling = 0;
+    this->workflow_timestamp = 0;
+    this->workflow_timestamp_error = false;
+    this->workflow_end_timestamp = 0;
+    this->workflow_end_timestamp_error = false;
   }
 
   void Entity::add_node(std::shared_ptr<Node> &node) {
@@ -1218,7 +1599,7 @@ namespace adaptyst {
 
   void Entity::init() {
     for (auto entry : this->nodes) {
-      entry.second->init();
+      entry.second->init(this->buf_size);
 
       this->modules_profiling += entry.second->get_modules_profiling();
     }
@@ -1249,6 +1630,13 @@ namespace adaptyst {
         fs::path(Terminal::instance->get_log_dir()) / (this->get_name() + "_stdout.log");
       fs::path stderr_path =
         fs::path(Terminal::instance->get_log_dir()) / (this->get_name() + "_stderr.log");
+
+      int pipe1[2];
+      int pipe2[2];
+
+      if (pipe(pipe1) == -1 || pipe(pipe2) == -1) {
+        this->throw_error("pipe() failed when preparing to run the workflow");
+      }
 
       this->profiled_process = std::make_unique<Process>([sdfg_lib_path]() {
         void *handle = dlopen(sdfg_lib_path.c_str(), RTLD_LAZY);
@@ -1284,34 +1672,104 @@ namespace adaptyst {
         exit(sdfg_handle);
 
         return exit_code;
-      }, [this, stdout_path, stderr_path]() {
-        this->workflow_start_time = ch::duration_cast<ch::milliseconds>(ch::system_clock::now().time_since_epoch()).count();
-
-        Terminal::instance->print("The workflow has just been started in entity " +
-                                  this->get_name() + ". "
-                                  "You can check its stdout and stderr in real time here:\n" +
-                                  stdout_path.string() + "\n" + stderr_path.string(),
-                                  true, false);
       });
 
       this->profiled_process->set_redirect_stdout(stdout_path);
       this->profiled_process->set_redirect_stderr(stderr_path);
 
+      this->workflow_stdout_path = stdout_path;
+      this->workflow_stderr_path = stderr_path;
+
+      this->profiled_process->add_env("ADAPTYST_READ_FD1", std::to_string(pipe1[0]));
+      this->profiled_process->add_env("ADAPTYST_READ_FD2", std::to_string(pipe1[1]));
+      this->profiled_process->add_env("ADAPTYST_WRITE_FD1", std::to_string(pipe2[0]));
+      this->profiled_process->add_env("ADAPTYST_WRITE_FD2", std::to_string(pipe2[1]));
+
+      int read_fd1 = pipe1[0];
+      int read_fd2 = pipe1[1];
+      int write_fd1 = pipe2[0];
+      int write_fd2 = pipe2[1];
+
+      std::vector<InjectPath> module_inject_paths;
+
+      for (auto &entry : this->nodes) {
+        for (auto &path : entry.second->get_module_inject_paths()) {
+          module_inject_paths.push_back(path);
+        }
+      }
+
+      this->workflow_comm = std::async([this, read_fd1, read_fd2, write_fd1, write_fd2,
+                                        module_inject_paths]() {
+        int read_fd[2] = {read_fd1, read_fd2};
+        int write_fd[2] = {write_fd1, write_fd2};
+
+        FileDescriptor fd(read_fd, write_fd, this->buf_size);
+        std::string msg;
+
+        auto get_msg = [this, &fd](std::string &msg) {
+          try {
+            msg = fd.read(1);
+            return !msg.empty();
+          } catch (TimeoutException) {
+            return this->is_workflow_running();
+          }
+        };
+
+        while (get_msg(msg)) {
+          if (msg == "init") {
+            fd.write("ack", true);
+            for (auto &path : module_inject_paths) {
+              fd.write(path.name + " " + std::to_string(path.id) + " " +
+                       std::to_string(path.read_fd[0]) + " " +
+                       std::to_string(path.read_fd[1]) + " " +
+                       std::to_string(path.write_fd[0]) + " " +
+                       std::to_string(path.write_fd[1]) + " " +
+                       path.path, true);
+            }
+            fd.write("<STOP>", true);
+          } else {
+            std::smatch match;
+
+            if (std::regex_match(msg, match, std::regex("^(start|end) (.+) (-?\\d+) (.+)$"))) {
+              Terminal::instance->log("Region \"" + match[4].str() +
+                                      "\", workflow part ID " + match[2].str() + ": " +
+                                      match[1].str() + " at " + match[3].str() + " ns",
+                                      this, "General");
+
+              std::string timestamp_str = match[3].str();
+
+              for (auto &entry : this->nodes) {
+                entry.second->region_switch(match[4].str(), match[2].str(), match[1].str(),
+                                            timestamp_str);
+              }
+
+              fd.write("ack", true);
+            } else {
+              fd.write("invalid", true);
+            }
+          }
+        }
+      });
+
       this->profiling_info.type = LINUX_PROCESS;
       this->profiling_info.data.pid = this->profiled_process->start(
           true, CPUConfig(this->get_cpu_mask()), false);
+
+      Terminal::instance->print("Workflow is ready to run in entity " + this->get_name() + ". "
+                                "It will be started when modules indicate that they are ready to "
+                                "start performance analysis.", true, false);
     }
 
     for (auto entry : this->nodes) {
       entry.second->process(this->sdfg);
     }
 
+    int exit_code = this->profile_wait();
+    this->entity_dir->set_metadata<int>("exit_code", exit_code);
+
     for (auto entry : this->nodes) {
       entry.second->wait();
     }
-
-    int exit_code = this->profile_wait();
-    this->entity_dir->set_metadata<int>("exit_code", exit_code);
 
     if (save_src_code_paths) {
       Archive archive(fs::path(this->entity_dir->get_path_name()) / "src.zip");
@@ -1363,6 +1821,31 @@ namespace adaptyst {
 
       if (this->modules_notified == this->modules_profiling) {
         this->profiled_process->notify();
+        this->process_notified = true;
+
+        struct timespec ts;
+
+        if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1) {
+          this->workflow_timestamp = 0;
+          this->workflow_timestamp_error = true;
+        } else {
+          this->workflow_timestamp = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+          this->workflow_timestamp_error = false;
+        }
+
+        this->workflow_start_time =
+            ch::duration_cast<ch::milliseconds>(
+                ch::system_clock::now().time_since_epoch())
+                .count();
+
+        Terminal::instance->print(
+            "Workflow has been started in entity " + this->get_name() +
+                ". "
+                "You can check its stdout and stderr in real time by looking "
+                "at:\n" +
+                this->workflow_stdout_path.string() + "\n" +
+                this->workflow_stderr_path.string(),
+            true, false);
       }
     }
   }
@@ -1370,6 +1853,17 @@ namespace adaptyst {
   int Entity::profile_wait() {
     if (this->profiled_process) {
       int result = this->profiled_process->join();
+
+      struct timespec ts;
+
+      if (clock_gettime(CLOCK_MONOTONIC, &ts) == -1) {
+        this->workflow_end_timestamp = 0;
+        this->workflow_end_timestamp_error = true;
+      } else {
+        this->workflow_end_timestamp = ts.tv_sec * 1000000000ULL + ts.tv_nsec;
+        this->workflow_end_timestamp_error = false;
+      }
+
       auto end_time = ch::duration_cast<ch::milliseconds>(ch::system_clock::now().time_since_epoch()).count();
 
       {
@@ -1552,11 +2046,39 @@ namespace adaptyst {
     return this->src_code_paths;
   }
 
+  bool Entity::is_workflow_running() {
+    if (this->profiled_process) {
+      return this->profiled_process->is_running();
+    }
+
+    return false;
+  }
+
+  bool Entity::is_workflow_ever_run() {
+    if (this->profiled_process) {
+      return this->process_notified;
+    }
+
+    return false;
+  }
+
+  unsigned long long Entity::get_workflow_start_time(bool &err) {
+    err = this->workflow_timestamp_error;
+    return this->workflow_timestamp;
+  }
+
+  unsigned long long Entity::get_workflow_end_time(bool &err) {
+    err = this->workflow_end_timestamp_error;
+    return this->workflow_end_timestamp;
+  }
+
   void System::init(fs::path def_file,
                     fs::path root_dir,
                     fs::path library_path,
                     fs::path local_config_path,
-                    fs::path tmp_dir) {
+                    fs::path tmp_dir,
+                    bool no_inject,
+                    unsigned int buf_size) {
     ryml::Tree tree;
 
     {
@@ -1670,7 +2192,7 @@ namespace adaptyst {
         std::make_shared<Entity>(name, access_mode_final,
                                  processing_threads,
                                  local_config_path,
-                                 tmp_dir);
+                                 tmp_dir, no_inject, buf_size);
 
       if (!entity.has_child("nodes")) {
         throw std::runtime_error("\"" + name + "\" in \"entities\" in "
@@ -1794,7 +2316,7 @@ namespace adaptyst {
 
           std::unique_ptr<Module> mod_obj = std::make_unique<Module>(
                 module_name_str, options_map, array_options_map, library_path,
-                never_directing);
+                never_directing, no_inject);
 
           if (mod_counts.contains(module_name_str)) {
             mod_counts[module_name_str]++;
@@ -1901,9 +2423,11 @@ namespace adaptyst {
                  fs::path root_dir,
                  fs::path library_path,
                  fs::path local_config_path,
-                 fs::path tmp_dir) {
+                 fs::path tmp_dir,
+                 bool no_inject,
+                 unsigned int buf_size) {
     this->init(def_file, root_dir, library_path,
-               local_config_path, tmp_dir);
+               local_config_path, tmp_dir, no_inject, buf_size);
     this->custom_src_code_paths_save = false;
   }
 
@@ -1912,9 +2436,11 @@ namespace adaptyst {
                  fs::path library_path,
                  fs::path local_config_path,
                  fs::path tmp_dir,
+                 bool no_inject,
+                 unsigned int buf_size,
                  std::variant<fs::path, int> codes_dst) {
     this->init(def_file, root_dir, library_path,
-               local_config_path, tmp_dir);
+               local_config_path, tmp_dir, no_inject, buf_size);
     this->custom_src_code_paths_save = true;
     this->codes_dst = codes_dst;
   }

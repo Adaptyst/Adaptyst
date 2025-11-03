@@ -82,13 +82,20 @@ target_include_directories(adaptyst PUBLIC
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>)
 
+add_library(adaptyst_inject SHARED src/inject.cpp)
+
+target_link_libraries(adaptyst_inject PUBLIC Poco::Foundation Poco::Net)
+target_include_directories(adaptyst_inject PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
 configure_package_config_file(
   ${CMAKE_SOURCE_DIR}/adaptyst-config.cmake.in
   ${CMAKE_BINARY_DIR}/adaptyst-config.cmake
   INSTALL_DESTINATION lib/cmake/adaptyst
   PATH_VARS ADAPTYST_MODULE_PATH)
 
-install(TARGETS adaptyst
+install(TARGETS adaptyst adaptyst_inject
   EXPORT adaptyst-targets
   LIBRARY
   INCLUDES)

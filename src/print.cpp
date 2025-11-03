@@ -54,12 +54,15 @@ namespace adaptyst {
   void Terminal::log(std::string message, Identifiable *source,
                      std::string log_type) {
     std::ofstream *stream = nullptr;
+    std::shared_ptr<std::mutex> stream_mutex;
 
     {
       std::unique_lock lock(this->log_mutex);
 
       if (log_streams.find(source) == log_streams.end()) {
-        log_streams[source] = std::unordered_map<std::string, std::ofstream>();
+        log_streams[source] = std::unordered_map<std::string,
+                                                 std::pair<std::shared_ptr<std::mutex>,
+                                                           std::ofstream> >();
       }
 
       if (log_streams[source].find(log_type) == log_streams[source].end()) {
@@ -69,11 +72,12 @@ namespace adaptyst {
           throw std::runtime_error("Could not create " + path.string());
         }
 
-        log_streams[source][log_type] =
-          std::ofstream(path / (log_type + ".log"));
+        log_streams[source][log_type] = std::make_pair(std::make_shared<std::mutex>(),
+                                                       std::ofstream(path / (log_type + ".log")));
       }
 
-      stream = &log_streams[source][log_type];
+      stream_mutex = log_streams[source][log_type].first;
+      stream = &log_streams[source][log_type].second;
     }
 
     if (!stream) {
@@ -82,14 +86,18 @@ namespace adaptyst {
                                ": no output stream found");
     }
 
-    if (!*stream) {
-      throw std::runtime_error("Logging " + log_type + " of "
-                               + source->get_name() +
-                               ": I/O error");
-    }
+    {
+      std::unique_lock lock(*stream_mutex);
 
-    *stream << message << std::endl;
-    stream->flush();
+      if (!*stream) {
+        throw std::runtime_error("Logging " + log_type + " of "
+                                 + source->get_name() +
+                                 ": I/O error");
+      }
+
+      *stream << message << std::endl;
+      stream->flush();
+    }
   }
 
   /**

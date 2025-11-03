@@ -7,6 +7,7 @@
 #include "system.hpp"
 #include <mutex>
 #include <string>
+#include <utility>
 
 namespace adaptyst {
   class Terminal {
@@ -18,7 +19,8 @@ namespace adaptyst {
     int last_line_len;
     std::string version;
     std::unordered_map<Identifiable *,
-                       std::unordered_map<std::string, std::ofstream> > log_streams;
+                       std::unordered_map<std::string, std::pair<std::shared_ptr<std::mutex>,
+                                                                 std::ofstream> > > log_streams;
     fs::path log_dir;
     Terminal(bool batch, bool formatted, std::string version,
              fs::path log_dir);

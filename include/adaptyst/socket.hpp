@@ -86,7 +86,8 @@ namespace adaptyst {
                               be stored.
        @param len             The size of the buffer.
        @param timeout_seconds A maximum number of seconds that can pass
-                              while waiting for the data.
+                              while waiting for the data. Use NO_TIMEOUT
+                              for no timeout.
 
        @throw TimeoutException    In case of timeout (see timeout_seconds).
        @throw ConnectionException In case of any other errors.
@@ -327,16 +328,28 @@ namespace adaptyst {
     }
 
     int read(char *buf, unsigned int len, long timeout_seconds) {
+      auto set_timeout = [this, &timeout_seconds]() {
+        if (timeout_seconds != NO_TIMEOUT) {
+          this->socket.setReceiveTimeout(Poco::Timespan(timeout_seconds, 0));
+        }
+      };
+
+      auto unset_timeout = [this, &timeout_seconds]() {
+        if (timeout_seconds != NO_TIMEOUT) {
+          this->socket.setReceiveTimeout(Poco::Timespan());
+        }
+      };
+
       try {
-        this->socket.setReceiveTimeout(Poco::Timespan(timeout_seconds, 0));
+        set_timeout();
         int bytes = this->socket.receiveBytes(buf, len);
-        this->socket.setReceiveTimeout(Poco::Timespan());
+        unset_timeout();
         return bytes;
       } catch (net::NetException &e) {
-        this->socket.setReceiveTimeout(Poco::Timespan());
+        unset_timeout();
         throw ConnectionException(e);
       } catch (Poco::TimeoutException &e) {
-        this->socket.setReceiveTimeout(Poco::Timespan());
+        unset_timeout();
         throw TimeoutException();
       }
     }
@@ -352,17 +365,9 @@ namespace adaptyst {
         std::string cur_msg = "";
 
         while (true) {
-          int bytes_received;
-
-          if (timeout_seconds == NO_TIMEOUT) {
-            bytes_received =
-              this->socket.receiveBytes(this->buf.get() + this->start_pos,
-                                        this->buf_size - this->start_pos);
-          } else {
-            bytes_received =
-              this->read(this->buf.get() + this->start_pos,
-                         this->buf_size - this->start_pos, timeout_seconds);
-          }
+          int bytes_received =
+            this->read(this->buf.get() + this->start_pos,
+                       this->buf_size - this->start_pos, timeout_seconds);
 
           if (bytes_received == 0) {
             return std::string(this->buf.get(), this->start_pos);
@@ -599,25 +604,30 @@ namespace adaptyst {
     std::queue<std::string> buffered_msgs;
     std::unique_ptr<char[]> buf;
     int start_pos;
+    bool close_on_destruct;
 
   public:
     /**
        Constructs a FileDescriptor object.
 
-       @param read_fd  The pair of file descriptors for read()
-                       as returned by the pipe system call. Can
-                       be nullptr.
-       @param write_fd The pair of file descriptors for write()
-                       as returned by the pipe system call. Can
-                       be nullptr.
-       @param buf_size The buffer size for communication, in bytes.
+       @param read_fd           The pair of file descriptors for read()
+                                as returned by the pipe system call. Can
+                                be nullptr.
+       @param write_fd          The pair of file descriptors for write()
+                                as returned by the pipe system call. Can
+                                be nullptr.
+       @param buf_size          The buffer size for communication, in bytes.
+       @param close_on_destruct Whether the file descriptors should
+                                be closed when the object is destroyed.
     */
     FileDescriptor(int read_fd[2],
                    int write_fd[2],
-                   unsigned int buf_size) {
+                   unsigned int buf_size,
+                   bool close_on_destruct = true) {
       this->buf.reset(new char[buf_size]);
       this->buf_size = buf_size;
       this->start_pos = 0;
+      this->close_on_destruct = close_on_destruct;
 
       if (read_fd != nullptr) {
         this->read_fd[0] = read_fd[0];
@@ -637,20 +647,24 @@ namespace adaptyst {
     }
 
     ~FileDescriptor() {
-      this->close();
+      if (this->close_on_destruct) {
+        this->close();
+      }
     }
 
     int read(char *buf, unsigned int len, long timeout_seconds) {
-      struct pollfd poll_struct;
-      poll_struct.fd = this->read_fd[0];
-      poll_struct.events = POLLIN;
+      if (timeout_seconds != NO_TIMEOUT) {
+        struct pollfd poll_struct;
+        poll_struct.fd = this->read_fd[0];
+        poll_struct.events = POLLIN;
 
-      int code = ::poll(&poll_struct, 1, 1000 * timeout_seconds);
+        int code = ::poll(&poll_struct, 1, 1000 * timeout_seconds);
 
-      if (code == -1) {
-        throw ConnectionException();
-      } else if (code == 0) {
-        throw TimeoutException();
+        if (code == -1) {
+          throw ConnectionException();
+        } else if (code == 0) {
+          throw TimeoutException();
+        }
       }
 
       return ::read(this->read_fd[0], buf, len);
@@ -666,23 +680,14 @@ namespace adaptyst {
       std::string cur_msg = "";
 
       while (true) {
-        int bytes_received;
+        int bytes_received =
+          this->read(this->buf.get() + this->start_pos,
+                     this->buf_size - this->start_pos,
+                     timeout_seconds);
 
-        if (timeout_seconds == NO_TIMEOUT) {
-          bytes_received =
-            ::read(this->read_fd[0], this->buf.get() + this->start_pos,
-                   this->buf_size - this->start_pos);
-
-          if (bytes_received == -1) {
-            throw ConnectionException();
-          }
-        } else {
-          bytes_received = this->read(this->buf.get() + this->start_pos,
-                                      this->buf_size - this->start_pos,
-                                      timeout_seconds);
-        }
-
-        if (bytes_received == 0) {
+        if (bytes_received == -1) {
+          throw ConnectionException();
+        } else if (bytes_received == 0) {
           return std::string(this->buf.get(), this->start_pos);
         }
 
@@ -814,6 +819,16 @@ namespace adaptyst {
         ::close(this->write_fd[1]);
         this->write_fd[1] = -1;
       }
+    }
+
+    std::pair<int, int> get_read_fd() {
+      return std::make_pair(this->read_fd[0],
+                            this->read_fd[1]);
+    }
+
+    std::pair<int, int> get_write_fd() {
+      return std::make_pair(this->write_fd[0],
+                            this->write_fd[1]);
     }
   };
 
