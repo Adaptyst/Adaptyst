@@ -6,6 +6,7 @@
 
 #include "socket.hpp"
 #include "os_detect.h"
+#include <variant>
 #include <unordered_map>
 #include <vector>
 #include <string>
