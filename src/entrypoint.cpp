@@ -29,26 +29,24 @@ namespace adaptyst {
 
   bool quiet;
 
-  // Commented out as this is not currently used
-  // ---------------------
-  // /**
-  //    A class validating whether a supplied command-line
-  //    option is equal to or larger than a given value.
-  // */
-  // class OnlyMinRange : public CLI::Validator {
-  // public:
-  //   OnlyMinRange(int min) {
-  //     func_ = [=](const std::string &arg) -> std::string {
-  //       if (!std::regex_match(arg, std::regex("^-?[0-9]+$")) ||
-  //           std::stoi(arg) < min) {
-  //         return "The value must be a number equal to or greater than " +
-  //           std::to_string(min);
-  //       }
+  /**
+     A class validating whether a supplied command-line
+     option is equal to or larger than a given value.
+  */
+  class OnlyMinRange : public CLI::Validator {
+  public:
+    OnlyMinRange(int min) {
+      func_ = [=](const std::string &arg) -> std::string {
+        if (!std::regex_match(arg, std::regex("^-?[0-9]+$")) ||
+            std::stoi(arg) < min) {
+          return "The value must be a number equal to or greater than " +
+            std::to_string(min);
+        }
 
-  //       return "";
-  //     };
-  //   }
-  // };
+        return "";
+      };
+    }
+  };
 
   int main_entrypoint(int argc, char **argv) {
     CLI::App app("Adaptyst: a performance analysis tool");
@@ -100,6 +98,19 @@ namespace adaptyst {
                    "analysis session (default: "
                    "adaptyst_<UTC timestamp>__<positive integer>)")
       ->option_text("TEXT");
+
+    unsigned int buf_size = 1024;
+    app.add_option("--buffer", buf_size, "Size of buffer for internal "
+                   "communication in bytes (default: 1024)")
+      ->option_text("UINT")
+      ->check(OnlyMinRange(0));
+
+    // no_inject will be fully implemented when process injection mechanism
+    // is implemented
+    bool no_inject = false;
+    // app.add_flag("-n,--no-inject", no_inject, "Do not use the process "
+    //              "injection mechanism (some modules will not work with "
+    //              "this flag)");
 
     // std::string codes_dst = "";
     // app.add_option("-c,--codes", codes_dst, "Send the newline-separated list "
@@ -511,7 +522,7 @@ namespace adaptyst {
     try {
       terminal.print("Reading the computer system definition file...", false, false);
       System system(system_def_dir, fs::path(out_dir) / "system", module_path,
-                    local_config_path, tmp_dir / "system");
+                    local_config_path, tmp_dir / "system", no_inject, buf_size);
 
       terminal.print("Making an SDFG of the command/workflow...", false, false);
 

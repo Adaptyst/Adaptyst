@@ -86,6 +86,14 @@ namespace adaptyst {
   class Entity;
   class System;
 
+  typedef struct InjectPath {
+    std::string name;
+    amod_t id;
+    int read_fd[2];
+    int write_fd[2];
+    std::string path;
+  } InjectPath;
+
   class Module : public Identifiable {
   public:
     static std::unordered_map<amod_t, Module *> all_modules;
@@ -108,9 +116,10 @@ namespace adaptyst {
            std::unordered_map<std::string, std::string> &options,
            std::unordered_map<std::string, std::vector<std::string>> &array_options,
            fs::path library_path,
-           bool never_directing);
+           bool never_directing,
+           bool no_inject);
     ~Module();
-    bool init();
+    bool init(unsigned int buf_size);
     void process(std::string sdfg);
     bool wait();
     void close();
@@ -147,6 +156,17 @@ namespace adaptyst {
     std::vector<int> get_version_nums();
     fs::path get_lib_path();
     unsigned int get_max_count_per_entity();
+    bool is_injection_available();
+    fs::path get_inject_lib_path();
+    amod_t get_id();
+    std::shared_ptr<FileDescriptor> get_fd();
+    std::string &receive_string_inject(long timeout_seconds = NO_TIMEOUT);
+    bool is_workflow_running();
+    bool is_workflow_ever_run();
+    unsigned long long get_workflow_start_time(bool &err);
+    unsigned long long get_workflow_end_time(bool &err);
+    void region_switch(std::string name, std::string part_id,
+                       std::string state, std::string timestamp_str);
 
   private:
     amod_t id;
@@ -157,6 +177,9 @@ namespace adaptyst {
     std::string error;
     void *context;
     void *handle;
+    fs::path inject_lib_path;
+    bool injecting_process;
+    bool injection_available;
     std::future<bool> process_future;
     std::vector<std::string> log_types;
     std::vector<void *> malloced;
@@ -170,18 +193,22 @@ namespace adaptyst {
     std::unordered_set<fs::path> src_code_paths;
     fs::path lib_path;
     unsigned int max_count_per_entity;
+    int read_fd[2];
+    int write_fd[2];
+    std::shared_ptr<FileDescriptor> fd;
+    std::string last_received_message_inject;
 
     void construct(std::string backend_name,
                    std::unordered_map<std::string, std::string> &options,
                    std::unordered_map<std::string, std::vector<std::string>> &array_options,
-                   fs::path library_path, bool never_directing);
+                   fs::path library_path, bool never_directing, bool no_inject);
   };
 
   class Node : public Identifiable {
   public:
     Node(std::string name,
          std::shared_ptr<Entity> &entity);
-    bool init();
+    bool init(unsigned int buf_size);
     void process(std::string &sdfg);
     bool wait();
     void close();
@@ -193,8 +220,8 @@ namespace adaptyst {
     void add_module(std::unique_ptr<Module> &mod);
     void profile_notify();
     int profile_wait();
-    bool get_will_profile();
-    void set_will_profile(bool will_profile);
+    int get_modules_profiling();
+    void inc_modules_profiling();
     void set_dir(fs::path path);
     std::vector<std::string> get_log_types();
     std::string get_type();
@@ -205,6 +232,13 @@ namespace adaptyst {
     fs::path &get_tmp_dir();
     fs::path &get_local_config_dir();
     std::unordered_set<fs::path> get_src_code_paths();
+    std::vector<InjectPath> get_module_inject_paths();
+    bool is_workflow_running();
+    bool is_workflow_ever_run();
+    unsigned long long get_workflow_start_time(bool &err);
+    unsigned long long get_workflow_end_time(bool &err);
+    void region_switch(std::string name, std::string part_id,
+                       std::string state, std::string timestamp_str);
 
   private:
     std::unique_ptr<Path> dir;
@@ -213,7 +247,8 @@ namespace adaptyst {
     std::unordered_set<std::string> tags;
     std::unordered_set<std::string> in_tags;
     std::unordered_set<std::string> out_tags;
-    bool will_profile;
+    int modules_profiling;
+    std::mutex modules_profiling_mutex;
   };
 
   class NodeConnection : public Identifiable {
@@ -243,7 +278,8 @@ namespace adaptyst {
     Entity(std::string id, AccessMode access_mode,
            unsigned int processing_threads,
            fs::path local_config_path,
-           fs::path tmp_dir);
+           fs::path tmp_dir, bool no_inject,
+           unsigned int buf_size);
     void add_node(std::shared_ptr<Node> &node);
     void add_connection(std::string id,
                         std::string departure_node,
@@ -267,6 +303,10 @@ namespace adaptyst {
     std::string get_type();
     void set_sdfg(std::string sdfg);
     std::unordered_set<fs::path> &get_src_code_paths();
+    bool is_workflow_running();
+    bool is_workflow_ever_run();
+    unsigned long long get_workflow_start_time(bool &err);
+    unsigned long long get_workflow_end_time(bool &err);
 
   private:
     AccessMode access_mode;
@@ -280,13 +320,25 @@ namespace adaptyst {
     fs::path tmp_dir;
     std::string cpu_mask;
     std::string sdfg;
-    bool will_profile;
     std::unique_ptr<Process> profiled_process;
     std::unordered_set<fs::path> src_code_paths;
     bool src_code_paths_collected;
     bool workflow_finish_printed;
     long long workflow_start_time;
     std::mutex workflow_finish_print_mutex;
+    std::mutex profile_notify_mutex;
+    int modules_notified;
+    int modules_profiling;
+    bool no_inject;
+    unsigned int buf_size;
+    std::future<void> workflow_comm;
+    unsigned long long workflow_timestamp;
+    bool workflow_timestamp_error;
+    unsigned long long workflow_end_timestamp;
+    bool workflow_end_timestamp_error;
+    bool process_notified;
+    fs::path workflow_stdout_path;
+    fs::path workflow_stderr_path;
   };
 
   class System {
@@ -300,14 +352,15 @@ namespace adaptyst {
 
     void init(fs::path def_file, fs::path root_dir,
               fs::path library_path, fs::path local_config_path,
-              fs::path tmp_dir);
+              fs::path tmp_dir, bool no_inject, unsigned int buf_size);
   public:
     System(fs::path def_file, fs::path root_dir,
            fs::path library_path, fs::path local_config_path,
-           fs::path tmp_dir);
+           fs::path tmp_dir, bool no_inject, unsigned int buf_size);
     System(fs::path def_file, fs::path root_dir,
            fs::path library_path, fs::path local_config_path,
-           fs::path tmp_dir, std::variant<fs::path, int> codes_dst);
+           fs::path tmp_dir, bool no_inject, unsigned int buf_size,
+           std::variant<fs::path, int> codes_dst);
     ~System();
     void set_sdfg(std::string sdfg);
     void process();

@@ -8,11 +8,13 @@
 #include <stdbool.h>
 #endif
 
+#include <adaptyst/amod_t.h>
+
 /**
    \def ADAPTYST_OK
    No error has occurred.
    Numerical value: 0
-   
+
    \def ADAPTYST_ERR_MODULE_NOT_FOUND
    Error indicating that a module with the specified ID hasn't been found.
    Numerical value: 1
@@ -40,7 +42,22 @@
    adaptyst_module_init() only has been attempted to be called
    outside of adaptyst_module_init().
    Numerical value: 6
-   
+
+   \def ADAPTYST_ERR_TIMEOUT
+   Error indicating a timeout.
+   Numerical value: 7
+
+   \def ADAPTYST_ERR_WORKFLOW_NOT_STARTED
+   Error indicating that the workflow hasn't been started.
+   Numerical value: 8
+
+   \def ADAPTYST_ERR_TIMESTAMP
+   Error indicating that the timestamp couldn't be obtained.
+   Numerical value: 9
+
+   \def ADAPTYST_ERR_WORKFLOW_RUNNING
+   Error indicating that the workflow is still running.
+   Numerical value: 10
 */
 #define ADAPTYST_OK 0
 #define ADAPTYST_ERR_MODULE_NOT_FOUND 1
@@ -49,6 +66,10 @@
 #define ADAPTYST_ERR_TERMINAL_NOT_INITIALISED 4
 #define ADAPTYST_ERR_LOG_DIR_CREATE 5
 #define ADAPTYST_ERR_INIT_ONLY 6
+#define ADAPTYST_ERR_TIMEOUT 7
+#define ADAPTYST_ERR_WORKFLOW_NOT_STARTED 8
+#define ADAPTYST_ERR_TIMESTAMP 9
+#define ADAPTYST_ERR_WORKFLOW_RUNNING 10
 
 #ifdef __cplusplus
 extern "C" {
@@ -112,8 +133,6 @@ extern "C" {
     } data;
   } profile_info;
 
-  typedef unsigned int amod_t;
-
   /**
      Gets a module option set by a user.
 
@@ -146,6 +165,104 @@ extern "C" {
              pointer if the operation hasn't been successful.
   */
   const char *adaptyst_get_log_dir(amod_t id);
+
+  /**
+     Sends data to the injection part of the module
+     in a workflow.
+
+     @param id  The module ID (use module_id).
+     @param buf Data to send.
+     @param n   Number of bytes to send.
+
+     @return Whether the operation has been successful.
+  */
+  bool adaptyst_send_data(amod_t id, char *buf, unsigned int n);
+
+  /**
+     Receives data from the injection part of the module
+     in a workflow, with no timeout.
+
+     @param id       The module ID (use module_id).
+     @param buf      Buffer where received data should be stored.
+     @param buf_size Size of the buffer in bytes.
+     @param n        Pointer to a variable where the number of received
+                     bytes should be stored.
+
+     @return Whether the operation has been successful.
+  */
+  bool adaptyst_receive_data(amod_t id, char *buf, unsigned int buf_size, int *n);
+
+  /**
+     Receives data from the injection part of the module
+     in a workflow, with a specific timeout.
+
+     @param id              The module ID (use module_id).
+     @param buf             Buffer where received data should be stored.
+     @param buf_size        Size of the buffer in bytes.
+     @param n               Pointer to a variable where the number of received
+                            bytes should be stored.
+     @param timeout_seconds Timeout in seconds.
+
+     @return Whether the operation has been successful (it's false with
+             adaptyst_get_internal_error_code() returning ADAPTYST_ERR_TIMEOUT
+             in case of timeout).
+  */
+  bool adaptyst_receive_data_timeout(amod_t id, char *buf, unsigned int buf_size,
+                                     int *n, long timeout_seconds);
+
+  /**
+     Sends a string to the injection part of the module in a workflow.
+
+     The recipient receives strings in the same order they are sent in
+     as long as the sender uses adaptyst_send_string() and the receiver uses
+     adaptyst_receive_string() or its timeout variant.
+
+     @param id  The module ID (use module_id).
+     @param str String to send.
+
+     @return Whether the operation has been successful.
+  */
+  bool adaptyst_send_string(amod_t id, const char *str);
+
+  /**
+     Receives a string from the injection part of the module
+     in a workflow, with no timeout.
+
+     If the sender has sent n strings using adaptyst_send_string()
+     (where n is a positive integer), adaptyst_receive_string() or
+     its timeout variant must be called n times to receive all of these,
+     in the order they have been sent in.
+
+     @param id  The module ID (use module_id).
+     @param str Pointer to a variable where the received string should
+                be stored. If 0 bytes are received, the variable is
+                set to a null pointer.
+
+     @return Whether the operation has been successful.
+  */
+  bool adaptyst_receive_string(amod_t id, const char **str);
+
+  /**
+     Receives a string from the injection part of the module
+     in a workflow, with a specific timeout.
+
+     If the sender has sent n strings using adaptyst_send_string()
+     (where n is a positive integer), adaptyst_receive_string_timeout() or
+     its non-timeout variant must be called n times to receive all of these,
+     in the order they have been sent in.
+
+     @param id              The module ID (use module_id).
+     @param str             Pointer to a variable where the received string
+                            should be stored. If 0 bytes are received, the
+                            variable is set to a null pointer.
+     @param timeout_seconds Timeout in seconds.
+
+     @return Whether the operation has been successful (it's false with
+             adaptyst_get_internal_error_code() returning ADAPTYST_ERR_TIMEOUT
+             in case of timeout).
+  */
+  bool adaptyst_receive_string_timeout(amod_t id, const char **str,
+                                       long timeout_seconds);
 
   /**
      Gets the name of a node a module is attached to.
@@ -361,20 +478,82 @@ extern "C" {
   */
   const char *adaptyst_get_internal_error_msg(amod_t id);
 
-#if defined(ADAPTYST_MODULE_ENTRYPOINT) || !defined(ADAPTYST_INTERNAL)
-  extern amod_t module_id;
-#endif
+  /**
+     Gets the current timestamp in nanoseconds in the Unix format.
+
+     @param id The module ID (use module_id).
+
+     @return Timestamp if no errors have occurred, 0 otherwise with
+             adaptyst_get_internal_error_code() returning
+             ADAPTYST_ERR_TIMESTAMP or ADAPTYST_ERR_MODULE_NOT_FOUND.
+  */
+  unsigned long long adaptyst_get_timestamp(amod_t id);
+
+  /**
+     Gets the timestamp in nanoseconds in the Unix format of when
+     the workflow has been started in an entity where the module
+     is.
+
+     Specifically, the timestamp refers to the moment when the
+     workflow has been started following modules indicating
+     their readiness to run performance analysis.
+
+     @param id The module ID (use module_id).
+
+     @return Time of the workflow start in the Unix timestamp
+             format if the operation is successful, 0 otherwise with
+             adaptyst_get_internal_error_code() returning ADAPTYST_ERR_*.
+             If the workflow hasn't been started, the error code
+             is ADAPTYST_ERR_WORKFLOW_NOT_STARTED.
+  */
+  unsigned long long adaptyst_get_workflow_start_time(amod_t id);
+
+  /**
+     Gets the timestamp in nanoseconds in the Unix format of when
+     the workflow has finished executing in an entity where the module
+     is.
+
+     @param id The module ID (use module_id).
+
+     @return Time of the workflow end in the Unix timestamp
+             format if the operation is successful, 0 otherwise with
+             adaptyst_get_internal_error_code() returning ADAPTYST_ERR_*.
+             If the workflow hasn't been started, the error code
+             is ADAPTYST_ERR_WORKFLOW_NOT_STARTED. If the workflow is
+             still running, the error code is ADAPTYST_ERR_WORKFLOW_RUNNING.
+  */
+  unsigned long long adaptyst_get_workflow_end_time(amod_t id);
+
+  /**
+     Gets whether the workflow is currently running in an entity
+     where the module is.
+
+     If the workflow is ready to run but modules haven't indicated
+     their readiness to run performance analysis yet, the return
+     value is true.
+
+     @param id The module ID (use module_id).
+
+     @return Whether the workflow is running. If the return value
+             is false, this means that either the workflow has finished
+             executing or hasn't been run.
+
+             WARNING: If the operation hasn't been successful,
+             the return value is also false! However, you can determine
+             that this is the cause of your problem by checking the
+             value of adaptyst_get_internal_error_code().
+  */
+  bool adaptyst_is_workflow_running(amod_t id);
 
 #ifdef ADAPTYST_MODULE_ENTRYPOINT
-  bool adaptyst_module_init();
+  bool adaptyst_module_init(amod_t module_id);
+  bool adaptyst_module_process(amod_t module_id, const char *sdfg);
+  void adaptyst_module_close(amod_t module_id);
 
-  bool _adaptyst_module_init(amod_t id) {
-    module_id = id;
-    return adaptyst_module_init();
-  }
-
-  bool adaptyst_module_process(const char *sdfg);
-  void adaptyst_module_close();
+  bool adaptyst_region_start(amod_t module_id, const char *name,
+                             const char *part_id, const char *timestamp_str);
+  bool adaptyst_region_end(amod_t module_id, const char *name,
+                           const char *part_id, const char *timestamp_str);
 #endif
 #ifdef __cplusplus
 }
