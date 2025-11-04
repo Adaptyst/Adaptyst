@@ -2386,19 +2386,19 @@ namespace adaptyst {
           auto node1 = edge["from"];
           auto node2 = edge["to"];
 
-          if (!node1.is_val()) {
+          if (!node1.is_keyval()) {
             throw std::runtime_error("\"from\" in edge \"" +
                                      edge_name + "\" in entity \"" + name + "\" "
-                                     "in the system YAML file is not a simple "
-                                     "value!");
+                                     "in the system YAML file is not of a simple "
+                                     "key-value type!");
           }
 
-          if (!node2.is_val()) {
+          if (!node2.is_keyval()) {
             throw std::runtime_error("\"to\" in edge \"" +
                                      edge_name + "\" in entity \"" + name +
                                      "\" "
-                                     "in the system YAML file is not a simple "
-                                     "value!");
+                                     "in the system YAML file is not of a simple "
+                                     "key-value type!");
           }
 
           std::shared_ptr<NodeConnection> connection =
