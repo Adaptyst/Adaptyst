@@ -339,6 +339,9 @@ namespace adaptyst {
     bool process_notified;
     fs::path workflow_stdout_path;
     fs::path workflow_stderr_path;
+    std::mutex profile_wait_mutex;
+    bool process_finished;
+    int process_exit_code;
   };
 
   class System {
