@@ -1554,6 +1554,7 @@ namespace adaptyst {
     this->workflow_timestamp_error = false;
     this->workflow_end_timestamp = 0;
     this->workflow_end_timestamp_error = false;
+    this->process_finished = false;
   }
 
   void Entity::add_node(std::shared_ptr<Node> &node) {
@@ -1698,6 +1699,10 @@ namespace adaptyst {
         }
       }
 
+      this->profiling_info.type = LINUX_PROCESS;
+      this->profiling_info.data.pid = this->profiled_process->start(
+          true, CPUConfig(this->get_cpu_mask()), false);
+
       this->workflow_comm = std::async([this, read_fd1, read_fd2, write_fd1, write_fd2,
                                         module_inject_paths]() {
         int read_fd[2] = {read_fd1, read_fd2};
@@ -1711,12 +1716,15 @@ namespace adaptyst {
             msg = fd.read(1);
             return !msg.empty();
           } catch (TimeoutException) {
+            msg = "";
             return this->is_workflow_running();
           }
         };
 
         while (get_msg(msg)) {
-          if (msg == "init") {
+          if (msg.empty()) {
+            continue;
+          } else if (msg == "init") {
             fd.write("ack", true);
             for (auto &path : module_inject_paths) {
               fd.write(path.name + " " + std::to_string(path.id) + " " +
@@ -1750,10 +1758,6 @@ namespace adaptyst {
           }
         }
       });
-
-      this->profiling_info.type = LINUX_PROCESS;
-      this->profiling_info.data.pid = this->profiled_process->start(
-          true, CPUConfig(this->get_cpu_mask()), false);
 
       Terminal::instance->print("Workflow is ready to run in entity " + this->get_name() + ". "
                                 "It will be started when modules indicate that they are ready to "
@@ -1852,7 +1856,15 @@ namespace adaptyst {
 
   int Entity::profile_wait() {
     if (this->profiled_process) {
+      std::unique_lock lock(this->profile_wait_mutex);
+
+      if (this->process_finished) {
+        return this->process_exit_code;
+      }
+
       int result = this->profiled_process->join();
+      this->process_exit_code = result;
+      this->process_finished = true;
 
       struct timespec ts;
 
@@ -2374,19 +2386,19 @@ namespace adaptyst {
           auto node1 = edge["from"];
           auto node2 = edge["to"];
 
-          if (!node1.is_val()) {
+          if (!node1.is_keyval()) {
             throw std::runtime_error("\"from\" in edge \"" +
                                      edge_name + "\" in entity \"" + name + "\" "
-                                     "in the system YAML file is not a simple "
-                                     "value!");
+                                     "in the system YAML file is not of a simple "
+                                     "key-value type!");
           }
 
-          if (!node2.is_val()) {
+          if (!node2.is_keyval()) {
             throw std::runtime_error("\"to\" in edge \"" +
                                      edge_name + "\" in entity \"" + name +
                                      "\" "
-                                     "in the system YAML file is not a simple "
-                                     "value!");
+                                     "in the system YAML file is not of a simple "
+                                     "key-value type!");
           }
 
           std::shared_ptr<NodeConnection> connection =
