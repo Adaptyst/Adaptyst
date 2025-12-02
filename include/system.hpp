@@ -324,7 +324,8 @@ namespace adaptyst {
     std::unordered_set<fs::path> src_code_paths;
     bool src_code_paths_collected;
     bool workflow_finish_printed;
-    long long workflow_start_time;
+    unsigned long long workflow_start_time;
+    bool workflow_start_time_set;
     std::mutex workflow_finish_print_mutex;
     std::mutex profile_notify_mutex;
     int modules_notified;

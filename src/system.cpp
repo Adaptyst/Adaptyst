@@ -1555,6 +1555,8 @@ namespace adaptyst {
     this->workflow_end_timestamp = 0;
     this->workflow_end_timestamp_error = false;
     this->process_finished = false;
+    this->workflow_start_time = 0;
+    this->workflow_start_time_set = false;
   }
 
   void Entity::add_node(std::shared_ptr<Node> &node) {
@@ -1841,6 +1843,7 @@ namespace adaptyst {
             ch::duration_cast<ch::milliseconds>(
                 ch::system_clock::now().time_since_epoch())
                 .count();
+        this->workflow_start_time_set = true;
 
         Terminal::instance->print(
             "Workflow has been started in entity " + this->get_name() +
@@ -1882,39 +1885,53 @@ namespace adaptyst {
         std::unique_lock lock(this->workflow_finish_print_mutex);
 
         if (!this->workflow_finish_printed) {
-          unsigned long long elapsed = end_time - this->workflow_start_time;
-          std::string elapsed_str;
+          if (this->workflow_start_time_set) {
+            unsigned long long elapsed = end_time - this->workflow_start_time;
+            std::string elapsed_str;
 
-          if (elapsed >= 1000) {
-            int ms = elapsed % 1000;
-            elapsed /= 1000;
+            if (elapsed >= 1000) {
+              int ms = elapsed % 1000;
+              elapsed /= 1000;
 
-            elapsed_str = std::to_string(elapsed) + ".";
+              elapsed_str = std::to_string(elapsed) + ".";
 
-            if (ms >= 100) {
-              elapsed_str += std::to_string(ms);
-            } else if (ms >= 10) {
-              elapsed_str += "0" + std::to_string(ms);
+              if (ms >= 100) {
+                elapsed_str += std::to_string(ms);
+              } else if (ms >= 10) {
+                elapsed_str += "0" + std::to_string(ms);
+              } else {
+                elapsed_str += "00" + std::to_string(ms);
+              }
+
+              elapsed_str += " s";
             } else {
-              elapsed_str += "00" + std::to_string(ms);
+              elapsed_str = std::to_string(elapsed) + " ms";
             }
 
-            elapsed_str += " s";
-          } else {
-            elapsed_str = std::to_string(elapsed) + " ms";
-          }
+            if (result == 0) {
+              Terminal::instance->print("Workflow in entity " + this->get_name() +
+                                        " has completed successfully in " +
+                                        elapsed_str + ".",
+                                        true, false);
+            } else {
+              std::string msg = "Workflow in entity " + this->get_name() +
+                " has completed with a non-zero exit code "
+                "(" + std::to_string(result) + ") in " + elapsed_str + ". "
+                "The way of handling this "
+                "is module-dependent.";
 
-          if (result == 0) {
-            Terminal::instance->print("Workflow in entity " + this->get_name() +
-                                      " has completed successfully in " +
-                                      elapsed_str + ".",
-                                      true, false);
+              if (result == Process::ERROR_ABNORMAL_EXIT) {
+                msg += "\nHint: The exit code is " + std::to_string(Process::ERROR_ABNORMAL_EXIT) +
+                  ", which may suggest that your workflow "
+                  "has encountered an unrecoverable error, e.g. a segmentation fault.";
+              }
+
+              Terminal::instance->print(msg, true, true);
+            }
           } else {
             std::string msg = "Workflow in entity " + this->get_name() +
-              " has completed with a non-zero exit code "
-              "(" + std::to_string(result) + ") in " + elapsed_str + ". "
-              "The way of handling this "
-              "is module-dependent.";
+              " has completed with exit code " + std::to_string(result) +
+              " before all module indications! This should not happen.";
 
             if (result == Process::ERROR_ABNORMAL_EXIT) {
               msg += "\nHint: The exit code is " + std::to_string(Process::ERROR_ABNORMAL_EXIT) +
