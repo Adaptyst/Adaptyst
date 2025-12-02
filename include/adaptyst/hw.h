@@ -134,6 +134,17 @@ extern "C" {
   } profile_info;
 
   /**
+     Gets the path of a loaded module library
+     (e.g. if the library is /A/B/C/libmodule.so, the return
+     value is /A/B/C/libmodule.so).
+
+     @param id The module ID (use module_id).
+
+     @return The path of a loaded module.
+  */
+  const char *adaptyst_get_library_dir(amod_t id);
+
+  /**
      Gets a module option set by a user.
 
      @param id  The module ID (use module_id).

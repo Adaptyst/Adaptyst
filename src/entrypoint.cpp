@@ -139,10 +139,10 @@ namespace adaptyst {
       "If you want to change the paths of the system-wide and local Adaptyst\n"
       "configuration files, set the environment variables ADAPTYST_CONFIG and\n"
       "ADAPTYST_LOCAL_CONFIG respectively to values of your choice. Similarly,\n"
-      "you can set the ADAPTYST_MODULE_DIR environment variable to change the path\n"
-      "where Adaptyst looks for workflow plugins and system modules. You can also\n"
-      "set ADAPTYST_MISC_DIR to change the path where Adaptyst looks for its support\n"
-      "files.";
+      "you can set the ADAPTYST_MODULE_DIRS environment variable to change the\n"
+      "colon-separated paths where Adaptyst looks for workflow plugins and system\n"
+      "modules. You can also set ADAPTYST_MISC_DIR to change the path where Adaptyst\n"
+      "looks for its support files.";
 
     app.footer(footer);
 
@@ -206,10 +206,16 @@ namespace adaptyst {
 
     CLI11_PARSE(app, argc, argv);
 
-    fs::path module_path(ADAPTYST_MODULE_PATH);
+    std::vector<fs::path> module_paths;
 
-    if (getenv("ADAPTYST_MODULE_DIR")) {
-      module_path = fs::path(getenv("ADAPTYST_MODULE_DIR"));
+    if (getenv("ADAPTYST_MODULE_DIRS")) {
+      std::vector<std::string> paths;
+      boost::split(paths, getenv("ADAPTYST_MODULE_DIRS"), boost::is_any_of(":"));
+      for (std::string &path : paths) {
+        module_paths.push_back(fs::path(path));
+      }
+    } else {
+      module_paths.push_back(ADAPTYST_MODULE_PATH);
     }
 
     fs::path system_config_path(ADAPTYST_CONFIG_FILE);
@@ -229,16 +235,16 @@ namespace adaptyst {
 
       if (list_modules) {
         try {
-          auto modules = Module::get_all_modules(module_path);
+          auto modules = Module::get_all_modules(module_paths);
 
           if (modules.empty()) {
             std::cout << "No modules are installed." << std::endl;
           } else {
             std::cout << "Installed modules:" << std::endl;
-            for (auto &module : modules) {
-              std::string name = module->get_name();
-              std::string version = module->get_version();
-              fs::path path = module->get_lib_path();
+            for (auto &sys_module : modules) {
+              std::string name = sys_module->get_name();
+              std::string version = sys_module->get_version();
+              fs::path path = sys_module->get_lib_path();
 
               std::cout << "* " << name << " v" << version << " (";
               std::cout << path.string() << ")" << std::endl;
@@ -269,16 +275,16 @@ namespace adaptyst {
       return 1;
     } else if (module_help != "") {
       try {
-        Module module(module_help, module_path);
+        Module sys_module(module_help, module_paths);
 
-        std::string name = module.get_name();
-        std::string version = module.get_version();
+        std::string name = sys_module.get_name();
+        std::string version = sys_module.get_version();
 
         std::cout << name << " v" << version << std::endl << std::endl;
         std::cout << "Available options:" << std::endl;
         std::cout << "------------------";
 
-        for (auto &option_metadata : module.get_all_options()) {
+        for (auto &option_metadata : sys_module.get_all_options()) {
           std::cout << std::endl;
 
           if (option_metadata.second.array_type == NONE &&
@@ -521,7 +527,7 @@ namespace adaptyst {
 
     try {
       terminal.print("Reading the computer system definition file...", false, false);
-      System system(system_def_dir, fs::path(out_dir) / "system", module_path,
+      System system(system_def_dir, fs::path(out_dir) / "system", module_paths,
                     local_config_path, tmp_dir / "system", no_inject, buf_size);
 
       terminal.print("Making an SDFG of the command/workflow...", false, false);
