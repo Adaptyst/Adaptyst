@@ -62,6 +62,11 @@ namespace adaptyst {
     app.add_flag("--plugins", list_plugins, "List in detail all "
                  "installed workflow plugins and exit");
 
+    bool print_info = false;
+    app.add_flag("--info", print_info, "Print information about "
+                 "various paths used by Adaptyst such as the "
+                 "module directory");
+
     std::string module_help = "";
     app.add_option("-m,--module-help", module_help, "Print the help "
                    "message of a given module and exit")
@@ -230,6 +235,12 @@ namespace adaptyst {
       local_config_path = fs::path(getenv("ADAPTYST_LOCAL_CONFIG"));
     }
 
+    std::string pythonpath = ADAPTYST_MISC_PATH;
+
+    if (getenv("ADAPTYST_MISC_DIR")) {
+      pythonpath = fs::path(getenv("ADAPTYST_MISC_DIR"));
+    }
+
     if (list_modules || list_plugins) {
       int to_return = 0;
 
@@ -270,6 +281,29 @@ namespace adaptyst {
       }
 
       return to_return;
+    } else if (print_info) {
+      std::cout << "Path where Adaptyst miscellaneous files can be found ";
+      std::cout << "(changable via ADAPTYST_MISC_DIR env variable):" << std::endl;
+      std::cout << fs::path(pythonpath).string() << std::endl << std::endl;
+
+      std::cout << "Path(s) where Adaptyst modules can be found ";
+      std::cout << "(changable via ADAPTYST_MODULE_DIRS env variable):" << std::endl;
+
+      for (auto &path : module_paths) {
+        std::cout << path.string() << std::endl;
+      }
+
+      std::cout << std::endl;
+
+      std::cout << "Path of the system-wide Adaptyst configuration file ";
+      std::cout << "(changable via ADAPTYST_CONFIG env variable):" << std::endl;
+      std::cout << system_config_path.string() << std::endl << std::endl;
+
+      std::cout << "Path of the local Adaptyst configuration file ";
+      std::cout << "(changable via ADAPTYST_LOCAL_CONFIG env variable):" << std::endl;
+      std::cout << local_config_path.string() << std::endl;
+
+      return 0;
     } else if (module_help != "" && plugin_help != "") {
       std::cerr << "-m and -p simultaneously are not supported" << std::endl;
       return 1;
@@ -511,12 +545,6 @@ namespace adaptyst {
     int to_return = 0;
 
     const char *existing_pythonpath = getenv("PYTHONPATH");
-
-    std::string pythonpath = ADAPTYST_MISC_PATH;
-
-    if (getenv("ADAPTYST_MISC_DIR")) {
-      pythonpath = fs::path(getenv("ADAPTYST_MISC_DIR"));
-    }
 
     if (existing_pythonpath) {
       pythonpath += ":" + std::string(existing_pythonpath);
