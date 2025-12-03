@@ -20,14 +20,20 @@ endif()
 include(FetchContent)
 include(CMakePackageConfigHelpers)
 
-# option(ENABLE_TESTS "Enable Adaptyst automated tests" OFF)
-set(ADAPTYST_MISC_PATH "/opt/adaptyst" CACHE STRING "Path where Adaptyst miscellaneous files should be installed into")
-set(ADAPTYST_MODULE_PATH "/opt/adaptyst/modules" CACHE STRING "Path where Adaptyst modules should be installed into")
-set(ADAPTYST_CONFIG_PATH "/etc/adaptyst.conf" CACHE STRING "Path where Adaptyst config file should be stored in")
-
 project(adaptyst
   DESCRIPTION "Performance analysis tool"
   LANGUAGES CXX)
+
+# option(ENABLE_TESTS "Enable Adaptyst automated tests" OFF)
+set(ADAPTYST_MISC_PATH "${CMAKE_INSTALL_PREFIX}/opt/adaptyst" CACHE STRING "Path where Adaptyst miscellaneous files should be installed into")
+set(ADAPTYST_MODULE_PATH "${CMAKE_INSTALL_PREFIX}/opt/adaptyst/modules" CACHE STRING "Path where Adaptyst modules should be installed into")
+set(ADAPTYST_CONFIG_PATH "${CMAKE_INSTALL_PREFIX}/etc/adaptyst.conf" CACHE STRING "Path where Adaptyst config file should be stored in")
+
+message(WARNING "The default values of ADAPTYST_MISC_PATH, ADAPTYST_MODULE_PATH, and "
+                "ADAPTYST_CONFIG_PATH have changed!\nThese are prefixed by the value of "
+                "CMAKE_INSTALL_PREFIX (in your case: ${CMAKE_INSTALL_PREFIX}) now. You may "
+                "ignore this warning if you have specified "
+                "custom values of the above variables.")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
