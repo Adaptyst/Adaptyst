@@ -65,7 +65,7 @@ namespace adaptyst {
     bool print_info = false;
     app.add_flag("--info", print_info, "Print information about "
                  "various paths used by Adaptyst such as the "
-                 "module directory");
+                 "module dir(s)");
 
     std::string module_help = "";
     app.add_option("-m,--module-help", module_help, "Print the help "
