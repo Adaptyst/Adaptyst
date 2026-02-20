@@ -1,5 +1,5 @@
-// SPDX-FileCopyrightText: 2025 CERN
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 CERN
+// SPDX-License-Identifier: LGPL-3.0-or-later
 
 #include "print.hpp"
 #include <iostream>
@@ -46,7 +46,7 @@ namespace adaptyst {
       std::unique_lock lock(this->mutex);
 
       std::cout << "Adaptyst " << this->version << std::endl;
-      std::cout << "Copyright (C) CERN. Core licensed under GNU GPL v3." << std::endl;
+      std::cout << "Copyright (C) CERN. Core licensed under GNU LGPL v3+." << std::endl;
       std::cout << std::endl;
     }
   }

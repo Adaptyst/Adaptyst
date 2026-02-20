@@ -1,5 +1,5 @@
-// SPDX-FileCopyrightText: 2025 CERN
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 CERN
+// SPDX-License-Identifier: LGPL-3.0-or-later
 
 #ifndef ADAPTYST_HW_INJECT_H_
 #define ADAPTYST_HW_INJECT_H_

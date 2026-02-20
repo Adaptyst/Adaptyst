@@ -1,5 +1,5 @@
-// SPDX-FileCopyrightText: 2025 CERN
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 CERN
+// SPDX-License-Identifier: LGPL-3.0-or-later
 
 #ifndef SYSTEM_HPP_
 #define SYSTEM_HPP_
@@ -108,14 +108,14 @@ namespace adaptyst {
       unsigned int default_array_value_size;
     };
 
-    static std::vector<std::unique_ptr<Module> > get_all_modules(fs::path library_path);
+    static std::vector<std::unique_ptr<Module> > get_all_modules(std::vector<fs::path> &library_paths);
 
     Module(std::string backend_name,
-           fs::path library_path);
+           std::vector<fs::path> &library_paths);
     Module(std::string backend_name,
            std::unordered_map<std::string, std::string> &options,
            std::unordered_map<std::string, std::vector<std::string>> &array_options,
-           fs::path library_path,
+           std::vector<fs::path> &library_paths,
            bool never_directing,
            bool no_inject);
     ~Module();
@@ -154,7 +154,7 @@ namespace adaptyst {
     std::string get_name();
     std::string get_version();
     std::vector<int> get_version_nums();
-    fs::path get_lib_path();
+    fs::path &get_lib_path();
     unsigned int get_max_count_per_entity();
     bool is_injection_available();
     fs::path get_inject_lib_path();
@@ -201,7 +201,7 @@ namespace adaptyst {
     void construct(std::string backend_name,
                    std::unordered_map<std::string, std::string> &options,
                    std::unordered_map<std::string, std::vector<std::string>> &array_options,
-                   fs::path library_path, bool never_directing, bool no_inject);
+                   std::vector<fs::path> &library_paths, bool never_directing, bool no_inject);
   };
 
   class Node : public Identifiable {
@@ -324,7 +324,8 @@ namespace adaptyst {
     std::unordered_set<fs::path> src_code_paths;
     bool src_code_paths_collected;
     bool workflow_finish_printed;
-    long long workflow_start_time;
+    unsigned long long workflow_start_time;
+    bool workflow_start_time_set;
     std::mutex workflow_finish_print_mutex;
     std::mutex profile_notify_mutex;
     int modules_notified;
@@ -354,14 +355,14 @@ namespace adaptyst {
     bool custom_src_code_paths_save;
 
     void init(fs::path def_file, fs::path root_dir,
-              fs::path library_path, fs::path local_config_path,
+              std::vector<fs::path> &library_paths, fs::path local_config_path,
               fs::path tmp_dir, bool no_inject, unsigned int buf_size);
   public:
     System(fs::path def_file, fs::path root_dir,
-           fs::path library_path, fs::path local_config_path,
+           std::vector<fs::path> &library_paths, fs::path local_config_path,
            fs::path tmp_dir, bool no_inject, unsigned int buf_size);
     System(fs::path def_file, fs::path root_dir,
-           fs::path library_path, fs::path local_config_path,
+           std::vector<fs::path> &library_paths, fs::path local_config_path,
            fs::path tmp_dir, bool no_inject, unsigned int buf_size,
            std::variant<fs::path, int> codes_dst);
     ~System();
