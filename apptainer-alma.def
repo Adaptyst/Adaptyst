@@ -11,8 +11,8 @@ From: gitlab-registry.cern.ch/linuxsupport/alma10-base
     dnf install -y dnf-plugins-core
     dnf config-manager --set-enabled crb
     dnf install -y epel-release
-    dnf install -y git wget cmake numactl-devel cli11-devel json-devel \
-       boost-devel libarchive-devel ninja-build pybind11-devel \
+    dnf install -y git gcc gcc-c++ wget cmake numactl-devel cli11-devel \
+       json-devel boost-devel libarchive-devel ninja-build pybind11-devel \
        python3-pip python3-devel python3
     pip install dace pyyaml
     wget https://pocoproject.org/releases/poco-1.15.0/poco-1.15.0.tar.gz && \

@@ -59,7 +59,7 @@ make-alma10-docker-image:
 #   before_script:
 #     - echo $KERBEROS_PASSWORD | kinit ${KERBEROS_USER}@CERN.CH
 #   script:
-#     - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" --build-arg registry="$CI_REGISTRY" adaptyst.sif $CI_PROJECT_DIR/apptainer.def
+#     - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" adaptyst.sif $CI_PROJECT_DIR/apptainer.def
 #     - |
 #       if [[ "$CI_COMMIT_TAG" != "" ]]; then
 #         xrdcp -C auto --rm-bad-cksum -t 5 adaptyst.sif root://eosuser.cern.ch/$WEB_STORAGE/apptainer/adaptyst-$CI_COMMIT_TAG.sif
@@ -76,7 +76,7 @@ make-alma10-apptainer-image:
   before_script:
     - echo $KERBEROS_PASSWORD | kinit ${KERBEROS_USER}@CERN.CH
   script:
-    - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" --build-arg registry="$CI_REGISTRY" adaptyst-alma10.sif $CI_PROJECT_DIR/apptainer-alma.def
+    - sudo apptainer build --build-arg project_dir="$CI_PROJECT_DIR" adaptyst-alma10.sif $CI_PROJECT_DIR/apptainer-alma.def
     - |
       if [[ "$CI_COMMIT_TAG" != "" ]]; then
         xrdcp -C auto --rm-bad-cksum -t 5 adaptyst-alma10.sif root://eosuser.cern.ch/$WEB_STORAGE/apptainer/adaptyst-alma10-$CI_COMMIT_TAG.sif
