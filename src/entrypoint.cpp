@@ -5,6 +5,7 @@
 #include "print.hpp"
 #include "cmd.hpp"
 #include "system.hpp"
+#include "workflow.hpp"
 #include "adaptyst/output.hpp"
 #include <CLI/CLI.hpp>
 #include <boost/algorithm/string.hpp>
@@ -13,7 +14,6 @@
 #include <regex>
 #include <sys/wait.h>
 #include <filesystem>
-#include <pybind11/embed.h>
 
 #ifndef ADAPTYST_CONFIG_FILE
 #define ADAPTYST_CONFIG_FILE ""
@@ -24,7 +24,6 @@
 namespace adaptyst {
   namespace ch = std::chrono;
   namespace fs = std::filesystem;
-  namespace py = pybind11;
   using namespace std::chrono_literals;
 
   bool quiet;
@@ -80,7 +79,7 @@ namespace adaptyst {
     bool is_command = false;
     app.add_flag("-d,--command", is_command, "Indicates that a command "
                  "will be provided for analysis rather than "
-                 "the path to a YAML file defining a workflow to be "
+                 "the path to a file defining a workflow to be "
                  "analysed");
 
     std::string system_def_dir = "";
@@ -544,34 +543,22 @@ namespace adaptyst {
     std::vector<pid_t> spawned_children;
     int to_return = 0;
 
-    const char *existing_pythonpath = getenv("PYTHONPATH");
-
-    if (existing_pythonpath) {
-      pythonpath += ":" + std::string(existing_pythonpath);
-    }
-
-    setenv("PYTHONPATH", pythonpath.c_str(), 1);
-    py::scoped_interpreter py_interpreter;
-
     try {
       terminal.print("Reading the computer system definition file...", false, false);
       System system(system_def_dir, fs::path(out_dir) / "system", module_paths,
                     local_config_path, tmp_dir / "system", no_inject, buf_size);
 
-      terminal.print("Making an SDFG of the command/workflow...", false, false);
+      terminal.print("Making an IR of the command/workflow...", false, false);
 
-      py::module_ gen_sdfg = py::module_::import("gen_sdfg");
-      py::list cmd_list;
-
-      for (auto &element : command_elements) {
-        cmd_list.append(element);
+      if (is_command) {
+        WorkflowCompilerSingleCmd compiler;
+        Workflow workflow(command_elements);
+        system.set_ir(compiler.compile(workflow));
+      } else {
+        WorkflowCompilerMLIR compiler;
+        Workflow workflow(command_elements[0]);
+        system.set_ir(compiler.compile(workflow));
       }
-
-      py::object sdfg = is_command ?
-        gen_sdfg.attr("gen_sdfg_from_cmd")(cmd_list) :
-        gen_sdfg.attr("gen_sdfg_from_yml")(command_elements[0]);
-
-      system.set_sdfg(sdfg.cast<std::string>());
 
       terminal.print("Running performance analysis...", false, false);
 
@@ -606,33 +593,6 @@ namespace adaptyst {
 
       terminal.print("Done in " + elapsed_str + " in total!", false, false);
       to_return = 0;
-    } catch (py::error_already_set &e) {
-      std::string msg(e.what());
-
-      if (e.matches(PyExc_ModuleNotFoundError)) {
-        if (msg.find("'gen_sdfg'") != std::string::npos) {
-          terminal.print("Could not find the Adaptyst Python module! Please check "
-                         "your Adaptyst library path.", true, true);
-        } else if (msg.find("'dace'") != std::string::npos) {
-          terminal.print("DaCe could not be found! Please set "
-                         "it up first (either system-wide or in a "
-                         "Python virtual environment).",
-                         true, true);
-        } else if (msg.find("'yaml'") != std::string::npos) {
-          terminal.print("PyYAML could not be found! Please set "
-                         "it up first (either system-wide or in a "
-                         "Python virtual environment).",
-                         true, true);
-        } else {
-          terminal.print("The Adaptyst Python module has thrown an error:\n" +
-                         msg, true, true);
-        }
-      } else {
-        terminal.print("The Adaptyst Python module has thrown an error:\n" +
-                       msg, true, true);
-      }
-
-      to_return = 2;
     } catch (std::runtime_error &e) {
       terminal.print(e.what(), true, true);
       to_return = 2;

@@ -11,11 +11,9 @@
 #include <vector>
 #include <filesystem>
 #include <future>
+#include "ir.hpp"
 #include "adaptyst/output.hpp"
 #include "adaptyst/process.hpp"
-
-#define ADAPTYST_INTERNAL
-#include "adaptyst/hw.h"
 
 namespace adaptyst {
   namespace fs = std::filesystem;
@@ -120,7 +118,7 @@ namespace adaptyst {
            bool no_inject);
     ~Module();
     bool init(unsigned int buf_size);
-    void process(std::string sdfg);
+    void process(std::shared_ptr<IR> ir_obj);
     bool wait();
     void close();
     void set_will_profile(bool will_profile);
@@ -209,7 +207,7 @@ namespace adaptyst {
     Node(std::string name,
          std::shared_ptr<Entity> &entity);
     bool init(unsigned int buf_size);
-    void process(std::string &sdfg);
+    void process(std::shared_ptr<IR> ir_obj);
     bool wait();
     void close();
     std::unordered_set<std::string> &get_tags();
@@ -301,7 +299,7 @@ namespace adaptyst {
     std::vector<std::shared_ptr<Node> > get_all_nodes();
     std::vector<std::string> get_log_types();
     std::string get_type();
-    void set_sdfg(std::string sdfg);
+    void set_ir(std::shared_ptr<IR> ir_obj);
     std::unordered_set<fs::path> &get_src_code_paths();
     bool is_workflow_running();
     bool is_workflow_ever_run();
@@ -319,7 +317,7 @@ namespace adaptyst {
     fs::path local_config_path;
     fs::path tmp_dir;
     std::string cpu_mask;
-    std::string sdfg;
+    std::shared_ptr<IR> ir_obj;
     std::unique_ptr<Process> profiled_process;
     std::unordered_set<fs::path> src_code_paths;
     bool src_code_paths_collected;
@@ -366,7 +364,7 @@ namespace adaptyst {
            fs::path tmp_dir, bool no_inject, unsigned int buf_size,
            std::variant<fs::path, int> codes_dst);
     ~System();
-    void set_sdfg(std::string sdfg);
+    void set_ir(std::shared_ptr<IR> ir_obj);
     void process();
     bool with_custom_src_code_paths();
   };

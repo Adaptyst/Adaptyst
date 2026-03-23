@@ -46,9 +46,6 @@ find_package(Poco REQUIRED Net Foundation)
 find_package(CLI11 CONFIG REQUIRED)
 find_package(LibArchive REQUIRED)
 
-set(PYBIND11_FINDPYTHON ON)
-find_package(pybind11 REQUIRED)
-
 FetchContent_Declare(ryml
   GIT_REPOSITORY https://github.com/biojppm/rapidyaml
   GIT_TAG v0.9.0
@@ -76,13 +73,13 @@ add_library(adaptyst SHARED
   src/system.cpp
   src/print.cpp
   src/archive.cpp
+  src/ir.cpp
   version.cpp)
 
 target_link_libraries(adaptyst PUBLIC nlohmann_json::nlohmann_json)
 target_link_libraries(adaptyst PUBLIC Poco::Foundation Poco::Net)
 target_link_libraries(adaptyst PUBLIC LibArchive::LibArchive)
 target_link_libraries(adaptyst PRIVATE ryml::ryml)
-target_link_libraries(adaptyst PRIVATE pybind11::embed)
 
 target_include_directories(adaptyst PUBLIC
   $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
@@ -121,7 +118,8 @@ install(FILES
 # Main Adaptyst setup
 add_executable(adaptyst-bin
   src/main.cpp
-  src/entrypoint.cpp)
+  src/entrypoint.cpp
+  src/workflow.cpp)
 
 target_compile_definitions(adaptyst-bin PRIVATE ADAPTYST_MISC_PATH="${ADAPTYST_MISC_PATH}")
 target_compile_definitions(adaptyst-bin PRIVATE ADAPTYST_MODULE_PATH="${ADAPTYST_MODULE_PATH}")
@@ -130,7 +128,6 @@ target_compile_definitions(adaptyst-bin PRIVATE ADAPTYST_CONFIG_FILE="${ADAPTYST
 target_link_libraries(adaptyst-bin PUBLIC adaptyst)
 target_link_libraries(adaptyst-bin PUBLIC CLI11::CLI11)
 target_link_libraries(adaptyst-bin PUBLIC Boost::headers Boost::program_options $<TARGET_NAME_IF_EXISTS:Boost::process>)
-target_link_libraries(adaptyst-bin PUBLIC pybind11::embed)
 
 target_include_directories(adaptyst-bin PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
