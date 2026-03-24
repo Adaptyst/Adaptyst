@@ -137,6 +137,7 @@ target_include_directories(adaptyst-bin PUBLIC ${Boost_INCLUDE_DIRS})
 set_target_properties(adaptyst-bin PROPERTIES OUTPUT_NAME "adaptyst")
 install(TARGETS adaptyst-bin RUNTIME)
 install(PROGRAMS src/utils/adaptyst-code.py TYPE BIN RENAME adaptyst-code)
+install(DIRECTORY DESTINATION ${ADAPTYST_MODULE_PATH})
 
 # if (ENABLE_TESTS)
 #   include(FetchContent)
