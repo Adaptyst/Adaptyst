@@ -137,8 +137,6 @@ target_include_directories(adaptyst-bin PUBLIC ${Boost_INCLUDE_DIRS})
 set_target_properties(adaptyst-bin PROPERTIES OUTPUT_NAME "adaptyst")
 install(TARGETS adaptyst-bin RUNTIME)
 install(PROGRAMS src/utils/adaptyst-code.py TYPE BIN RENAME adaptyst-code)
-install(FILES src/scripts/gen_sdfg.py DESTINATION ${ADAPTYST_MISC_PATH})
-install(FILES src/scripts/compile_sdfg.py DESTINATION ${ADAPTYST_MISC_PATH})
 
 # if (ENABLE_TESTS)
 #   include(FetchContent)
