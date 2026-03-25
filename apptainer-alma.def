@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 CERN
+# SPDX-License-Identifier: LGPL-3.0-or-later
+
+Bootstrap: docker
+From: gitlab-registry.cern.ch/linuxsupport/alma10-base
+
+%files
+    {{ project_dir }} adaptyst
+
+%post
+    dnf install -y dnf-plugins-core
+    dnf config-manager --set-enabled crb
+    dnf install -y epel-release
+    dnf install -y git gcc gcc-c++ wget cmake numactl-devel cli11-devel \
+       json-devel boost-devel libarchive-devel ninja-build
+    wget https://pocoproject.org/releases/poco-1.15.0/poco-1.15.0.tar.gz && \
+       tar xzf poco-1.15.0.tar.gz
+    mkdir poco-build && cd poco-build
+    cmake ../poco-1.15.0 -DCMAKE_INSTALL_PREFIX=/usr -G Ninja && \
+       cmake --build . && cmake --install .
+    cd .. && rm -rf poco*
+    cd adaptyst
+    mkdir build && cd build
+    cmake .. -G Ninja -DCMAKE_INSTALL_PREFIX=/usr
+    cmake --build .
+    cmake --install .
+    cd ../.. && rm -rf adaptyst
+    ldconfig
