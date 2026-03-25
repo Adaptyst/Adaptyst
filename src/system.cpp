@@ -8,7 +8,6 @@
 #include <ryml.hpp>
 #include <fstream>
 #include <dlfcn.h>
-#include <pybind11/embed.h>
 #include <regex>
 #include <time.h>
 
@@ -613,7 +612,6 @@ extern "C" {
 // The C hardware module API code segment ends here.
 
 namespace adaptyst {
-  namespace py = pybind11;
   namespace ch = std::chrono;
 
   std::unordered_map<amod_t, Module *> Module::all_modules;
@@ -1129,18 +1127,20 @@ namespace adaptyst {
     return result;
   }
 
-  void Module::process(std::string sdfg) {
-    bool (*process_func)(amod_t, const char *) =
-      (bool (*)(amod_t, const char *))dlsym(this->handle,
-                                            "adaptyst_module_process");
+  void Module::process(std::shared_ptr<IR> ir_obj) {
+    bool (*process_func)(amod_t, ir) =
+      (bool (*)(amod_t, ir))dlsym(this->handle,
+                                  "adaptyst_module_process");
 
     if (!process_func) {
       this->throw_error("Module \"" + this->get_name() + "\" doesn't define adaptyst_module_process()! "
                         "Has it been compiled correctly?");
     }
 
-    this->process_future = std::async([this, process_func, sdfg]() {
-      return process_func(this->id, sdfg.c_str());
+    ir ir_info = ir_obj->to_c_type();
+
+    this->process_future = std::async([this, process_func, ir_info]() {
+      return process_func(this->id, ir_info);
     });
   }
 
@@ -1371,9 +1371,9 @@ namespace adaptyst {
     return true;
   }
 
-  void Node::process(std::string &sdfg) {
+  void Node::process(std::shared_ptr<IR> ir_obj) {
     for (auto &mod : this->modules) {
-      mod->process(sdfg);
+      mod->process(ir_obj);
     }
   }
 
@@ -1639,23 +1639,7 @@ namespace adaptyst {
   void Entity::process(bool save_src_code_paths) {
     if (this->modules_profiling > 0 && this->access_mode != CUSTOM &&
         this->access_mode != CUSTOM_REMOTE) {
-      if (this->access_mode == REMOTE) {
-        py::initialize_interpreter();
-      }
-
-      fs::path sdfg_lib_path = this->get_tmp_dir() / "root_sdfg.so";
-
-      try {
-        py::module_ compile_sdfg = py::module_::import("compile_sdfg");
-        compile_sdfg.attr("compile")(this->sdfg,
-                                     sdfg_lib_path.string());
-      } catch (py::error_already_set &e) {
-        throw e;
-      }
-
-      if (this->access_mode == REMOTE) {
-        py::finalize_interpreter();
-      }
+      ir_obj->compile();
 
       fs::path stdout_path =
         fs::path(Terminal::instance->get_log_dir()) / (this->get_name() + "_stdout.log");
@@ -1669,41 +1653,7 @@ namespace adaptyst {
         this->throw_error("pipe() failed when preparing to run the workflow");
       }
 
-      this->profiled_process = std::make_unique<Process>([sdfg_lib_path]() {
-        void *handle = dlopen(sdfg_lib_path.c_str(), RTLD_LAZY);
-
-        if (!handle) {
-          return 100;
-        }
-
-        void *(*init)() = (void *(*)()) dlsym(handle, "__dace_init_AdaptystRootSDFG");
-
-        if (!init) {
-          return 101;
-        }
-
-        void *sdfg_handle = init();
-
-        void (*program)(void *, int *) = (void (*)(void *, int *)) dlsym(handle, "__program_AdaptystRootSDFG");
-
-        if (!program) {
-          return 102;
-        }
-
-        int exit_code = 0;
-
-        program(sdfg_handle, &exit_code);
-
-        int (*exit)(void *) = (int (*)(void *)) dlsym(handle, "__dace_exit_AdaptystRootSDFG");
-
-        if (!exit) {
-          return 103;
-        }
-
-        exit(sdfg_handle);
-
-        return exit_code;
-      });
+      this->profiled_process = ir_obj->execute();
 
       this->profiled_process->set_redirect_stdout(stdout_path);
       this->profiled_process->set_redirect_stderr(stderr_path);
@@ -1795,7 +1745,7 @@ namespace adaptyst {
     }
 
     for (auto entry : this->nodes) {
-      entry.second->process(this->sdfg);
+      entry.second->process(this->ir_obj);
     }
 
     int exit_code = this->profile_wait();
@@ -2085,8 +2035,8 @@ namespace adaptyst {
     return "Entity";
   }
 
-  void Entity::set_sdfg(std::string sdfg) {
-    this->sdfg = sdfg;
+  void Entity::set_ir(std::shared_ptr<IR> ir_obj) {
+    this->ir_obj = ir_obj;
   }
 
   std::unordered_set<fs::path> &Entity::get_src_code_paths() {
@@ -2508,9 +2458,9 @@ namespace adaptyst {
     }
   }
 
-  void System::set_sdfg(std::string sdfg) {
+  void System::set_ir(std::shared_ptr<IR> ir_obj) {
     for (auto &entity : this->entities) {
-      entity.second->set_sdfg(sdfg);
+      entity.second->set_ir(ir_obj);
     }
   }
 

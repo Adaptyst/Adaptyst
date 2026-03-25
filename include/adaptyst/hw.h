@@ -71,9 +71,55 @@
 #define ADAPTYST_ERR_TIMESTAMP 9
 #define ADAPTYST_ERR_WORKFLOW_RUNNING 10
 
+/**
+   \def ADAPTYST_IR_MLIR
+   MLIR is used as an IR. This is not implemented yet, do not use.
+   Numerical value: 100
+
+   \def ADAPTYST_IR_SINGLE_CMD
+   The non-MLIR single-command-analysis mode is used. The data
+   pointer is of type char**: a null-terminated array of
+   null-terminated strings indicating a user-specified command
+   split into Unix-command-line-specific parts (e.g.
+   "ls -a /abc" is represented as ["ls", "-a", "/abc", NULL]).
+   Numerical value: 101
+*/
+#define ADAPTYST_IR_MLIR 100
+#define ADAPTYST_IR_SINGLE_CMD 101
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+  /**
+     Struct describing the intermediate representation (IR) of
+     a workflow.
+  */
+  typedef struct {
+    /**
+       Type of IR telling you how to cast the "data" member.
+
+       The value is one of the ADAPTYST_IR_* definitions.
+    */
+    unsigned int type;
+
+    /**
+       Pointer to data storing the IR.
+
+       See the value of the "type" member and the documentation
+       corresponding to that value to determine what type the pointer
+       should be cast to.
+
+       For example, if your documentation says that the data pointer
+       is of type XYZ*, you need to write something along the lines of:
+
+       ```c
+       // ir workflow = ...;
+       XYZ* ir_data = (XYZ*) workflow.data;
+       ```
+    */
+    void *data;
+  } ir;
+
   /**
      Enum describing a value type of a module option.
   */
@@ -558,7 +604,7 @@ extern "C" {
 
 #ifdef ADAPTYST_MODULE_ENTRYPOINT
   bool adaptyst_module_init(amod_t module_id);
-  bool adaptyst_module_process(amod_t module_id, const char *sdfg);
+  bool adaptyst_module_process(amod_t module_id, ir workflow);
   void adaptyst_module_close(amod_t module_id);
 
   bool adaptyst_region_start(amod_t module_id, const char *name,
